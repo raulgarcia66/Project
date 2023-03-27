@@ -1,7 +1,8 @@
-/Adelman and Mersereau - Relaxations of Weakly Coupled Stochastic Dynamic Programs.pdf
-/Bertsimas and Misic - DecomposableMDPs_OR.pdf
-/Boutilier and Lu - Budget Allocation using Weakly Coupled Constrained MDPs.pdf
-/CMOR_654_Project Proposal.pdf
-/CMOR_654_Project Report I.pdf
+# /Adelman and Mersereau - Relaxations of Weakly Coupled Stochastic Dynamic Programs.pdf
+# /Bertsimas and Misic - DecomposableMDPs_OR.pdf
+# /Boutilier and Lu - Budget Allocation using Weakly Coupled Constrained MDPs.pdf
+# /CMOR_654_Project Proposal.pdf
+# /CMOR_654_Project Report I.pdf
 /MDP transitions_updated.xlsx
-/project_proposal_info.pdf
+# /project_proposal_info.pdf
+*.pdf
