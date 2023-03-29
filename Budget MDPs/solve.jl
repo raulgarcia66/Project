@@ -74,7 +74,9 @@ end
 
 
 function compute_permutations(M, num_states)
-    # TODO
+    # lists = [[i for i = 1:M] for _ = 1:num_states]
+    # combs = collect(Iterators.product(lists...))
+    return collect(Iterators.product([[i for i = 1:M] for _ = 1:num_states]...))
 end
 
 
