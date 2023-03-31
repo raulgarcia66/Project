@@ -102,9 +102,16 @@ function compute_useful_budgets(states, actions, B_max, P, c, r, Γ, T)
         # push!(σ_union_vec, σ_union)
     end
 
-    # reverse(B_tilde_vec)   # first element is now useful budgets for first chronological time period
+    reverse!(B_union_vec)
+    reverse!(B_tilde_union_vec)
+    reverse!(v_union_vec)
+    reverse!(v_tilde_union_vec)
+    reverse!(B_vec)
+    reverse!(B_tilde_vec)
+    reverse!(v_vec)
+    reverse!(v_tilde_vec)
+
     return B_union_vec, B_tilde_union_vec, v_union_vec, v_tilde_union_vec, B_vec, B_tilde_vec, v_vec, v_tilde_vec, σ_vec, σ_tilde_vec
-    # return B_union_vec, B_tilde_union_vec, v_union_vec, v_tilde_union_vec, σ_union_vec, σ_tilde_union_vec, B_vec, B_tilde_vec, v_vec, v_tilde_vec, σ_vec, σ_tilde_vec
 end
 
 
