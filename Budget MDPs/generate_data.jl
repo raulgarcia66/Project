@@ -12,7 +12,7 @@ using LinearAlgebra
 
 ###############################################################################
 
-function generate_data_rand(num_sub; r_from_u_c=true)
+function generate_data_rand(num_sub; seeds=-ones(num_sub), r_from_u_c=true)
     P = Array{Float64,3}[]
     C = Array{Float64,2}[]
     U = Array{Float64,2}[]
@@ -20,7 +20,11 @@ function generate_data_rand(num_sub; r_from_u_c=true)
     # U_terminal = create_u(num_states, num_actions, seed = seed)
     # U_terminal = zeros(num_states)  # reward when no action is taken (e.g., at end of planning horizon); might not be used
 
-    for seed = 1:num_sub
+    if seeds == -ones(num_sub)
+        seeds = 1:num_sub
+    end
+
+    for seed in seeds
         push!(P, create_P_mat(num_states, num_actions, seed = seed))
 
         if r_from_u_c
