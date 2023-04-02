@@ -79,7 +79,7 @@ function create_u(num_states, num_actions; seed=-1)
         Random.seed!(seed)
     end
 
-    u_col = rand(0:5, num_states)
+    u_col = rand(5:10, num_states)   # Want u >= c most entries
     u = copy(u_col)
     for _ = 1:(num_actions-1)
         u = hcat(u, u_col)
@@ -102,6 +102,5 @@ function create_c(num_states, num_actions; seed=-1)
     #     c[ind] = 0
     # end
 
-    # return rand(0:5, num_states, num_actions)
     return c
 end
