@@ -12,7 +12,8 @@ using LinearAlgebra
 
 ###############################################################################
 
-function generate_data_rand(num_sub; seeds=-ones(num_sub), r_from_u_c=true)
+function generate_data_rand(num_sub, num_states, num_actions; seeds=-ones(num_sub), r_from_u_c=true)
+    # Assuming every subMDP has same number of states and actions
     P = Array{Float64,3}[]
     C = Array{Float64,2}[]
     U = Array{Float64,2}[]
