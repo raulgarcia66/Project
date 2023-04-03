@@ -162,7 +162,8 @@ function compute_potentially_useful_budgets_state_action(i, a, b, S, B_max, P, c
     assignments = compute_assignments(b[S])
     # For σ ∈ assignments, σ is a vector of FINISH
 
-    p_u_b = map(σ -> c[i,a] + Γ * sum([ P[i, S[j], a] * b[S[j]][σ[S[j]]] for j in eachindex(S) ]), assignments)
+    p_u_b = map(σ -> c[i,a] + Γ * sum([ P[i, S[j], a] * b[S[j]][σ[j]] for j in eachindex(S) ]), assignments)
+    # p_u_b = map(σ -> c[i,a] + Γ * sum([ P[i, S[j], a] * b[S[j]][σ[S[j]]] for j in eachindex(S) ]), assignments)
     indices = filter(ind -> p_u_b[ind] <= B_max, eachindex(p_u_b))
     p_u_b = p_u_b[indices]
     assignments = assignments[indices]
@@ -183,7 +184,9 @@ end
 # compute_potentially_useful_values_state_action(i, a, vv, σ_tilde[i,a], S, P, r[i,a], Γ)
 function compute_potentially_useful_values_state_action(i, a, v, assignments, S, P, r, Γ)
     # vv is a vector  of vectors; v[i] = vector of budgets for state i
-    return map(σ -> r + Γ * sum([ P[i, S[j], a] * v[S[j]][σ[S[j]]] for j in eachindex(S) ]), assignments)
+    
+    return map(σ -> r + Γ * sum([ P[i, S[j], a] * v[S[j]][σ[j]] for j in eachindex(S) ]), assignments)
+    # return map(σ -> r + Γ * sum([ P[i, S[j], a] * v[S[j]][σ[S[j]]] for j in eachindex(S) ]), assignments)
 end
 
 
