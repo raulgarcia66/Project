@@ -38,7 +38,6 @@ Random.seed!(1)
 
 ###############################################################################
 # Run tests
-include("./solve.jl")
 sub = 1
 B_union_vec, BB_vec, B_tilde_union_vec, v_union_vec, vv_vec, v_tilde_union_vec, B_vec, B_tilde_vec, v_vec, v_tilde_vec = compute_useful_budgets(states, actions, B_max, P[sub], C[sub], R[sub], Γ[sub], T);
 
@@ -57,7 +56,7 @@ for t = 1:T
 end
 
 for t in 1:T, i in 1:num_states
-    plot_V(i, t, BB_vec[t][i], vv_vec[t][i], save_plot=true)
+    plot_V(i, t, BB_vec[t][i], vv_vec[t][i], save_plot=false)
 end
 
 length(B_union_vec)
