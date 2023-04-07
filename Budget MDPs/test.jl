@@ -55,8 +55,8 @@ for t = 1:T
     # end
 end
 
-for t in 1:T, i in 1:num_states
-    plot_V(i, t, BB_vec[t][i], vv_vec[t][i], save_plot=false)
+for t in 1:T+1, i in 1:num_states
+    plot_V(i, t, BB_vec[t][i], vv_vec[t][i], save_plot=true)
 end
 
 length(B_union_vec)
