@@ -39,7 +39,13 @@ Random.seed!(1)
 ###############################################################################
 # Run tests
 sub = 1
+
 B_union_vec, BB_vec, B_tilde_union_vec, v_union_vec, vv_vec, v_tilde_union_vec, B_vec, B_tilde_vec, v_vec, v_tilde_vec = compute_useful_budgets(states, actions, B_max, P[sub], C[sub], R[sub], Γ[sub], T);
+
+t = 3
+state = 1
+act, bud, val = get_action_budget_value(4.5, B_union_vec, v_union_vec, t, state)
+
 
 t = 3
 state = 1
@@ -56,7 +62,7 @@ for t = 1:T
 end
 
 for t in 1:T+1, i in 1:num_states
-    plot_V(i, t, BB_vec[t][i], vv_vec[t][i], save_plot=true)
+    plot_V(i, t, BB_vec[t][i], vv_vec[t][i], save_plot=false)
 end
 
 length(B_union_vec)
@@ -85,4 +91,4 @@ v_union_vec[end][state]
 v_vec[end][state, action]
 v_tilde_union_vec[end][state]
 
-plot_V(state, t, B_union_vec[t][state], v_union_vec[t][state])
+plot_V(state, t, BB_vec[t][state], vv_vec[t][state])

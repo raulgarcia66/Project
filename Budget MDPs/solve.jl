@@ -225,3 +225,89 @@ function computed_useful_budgets_state(B, v)
         return B, v
     end
 end
+
+
+# struct Policy
+#     B_union_vec
+#     v_union_vec
+#     T
+#     action
+#     # functions
+# end
+
+
+function get_action_budget_value(b, B_union_vec, v_union_vec, t, i)
+    # return action for when budget is b
+    # t is period
+    # i is state
+
+    ϵ = 1E-6
+    index = findfirst(bud -> bud.second > b + ϵ, B_union_vec[t][i])   # find first budget that exceeds b
+    if index === nothing
+        index = length(B_union_vec[t][i])   # budget is the last element
+    elseif index != 1   # first budget is 0
+        index -= 1   # our budget is the previousb
+    end
+    return B_union_vec[t][i][index].first, B_union_vec[t][i][index].second, v_union_vec[t][i][index].second
+end
+
+
+## Functions for stochastic policies
+
+# TODO: Swap B_union with BB if pairs not needed
+function compute_Q_functions(B_union, v_union, states, actions, P)
+    # B_union[i] = vector of budgets for state i
+    # v_union[i] = vector of values for state i
+
+    # B_ND_union, v_ND_union = compute_nondominated_budgets_values(B_union, v_union)
+    B_union, v_union = compute_nondominated_budgets_values(B_union, v_union)
+
+    BpB = Vector{Vector{Float64}}(undef, length(states))
+    for i in states
+        BpB[i] = compute_bang_per_buck(B_union[i], v_union[i]) # this is defined for budgets 2:end since the first budget is 0
+    end
+
+    # B_S_vec = Vector{Vector{Pair{Int,Float64}}}[]
+    # B_S_vec = Vector{Pair{Int,Float64}}[]
+    B_S = Array{Vector{Pair{Int, Tuple{Float64,Float64}}},2}(undef, length(states), length(actions))
+    v_S = Array{Vector{Pair{Int, Tuple{Float64,Float64}}},2}(undef, length(states), length(actions))
+
+    for i in states, a in actions
+
+        S = compute_reachable_states(P, i, a)
+
+        # TODO: Remove duplicates, since we're merging over states
+        B_S[i,a] = @pipe map(j -> 
+                    begin 
+                        map(k -> j => (B_union[j][k], BpB[j][k-1]), 2:length(B_union[j]))   # budget of 0 excluded
+                    end, S) |> vcat(_...)
+        v_S[i,a] = @pipe map(j -> 
+                    begin 
+                        map(k -> j => (v_union[j][k], BpB[j][k-1]), 2:length(v_union[j]))   # budget of 0 excluded
+                    end, S) |> vcat(_...)
+        # println("B_S = $B_S")
+
+        sorted_ind = sortperm(B_S[i,a], by = pairs -> pairs.second[2])
+        B_S[i,a] = B_S[i,a][sorted_ind]
+        v_S[i,a] = v_S[i,a][sorted_ind]
+        # sort!(B_S[i,a], by = pairs -> pairs.second[2])
+        # sort!(v_S[i,a], by = pairs -> pairs.second[2])
+    end
+    return B_S, v_S
+end
+
+
+# TODO: Figure this function out
+function compute_nondominated_budgets_values(B_union, v_union)
+    # B_union[i] = vector of budgets for state i
+    # v_union[i] = vector of values for state i
+    
+    # Given useful budgets for state i, B[i], B[i][k] is said to dominated if ∃ two bracketing levels B[i][k-], B[i][k+] (k- < k < k+) such that
+    # some convex combination of their values dominates that of B[i][k], i.e. (1-p)*v[i][k-] + p*v[i][k+] > v[i][k]
+    return B_union, v_union
+end
+
+
+function compute_bang_per_buck(B, v)
+    return map(k -> (v[k] - v[k-1]) / (B[k] - B[k-1]), 2:length(B))
+end
