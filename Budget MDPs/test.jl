@@ -42,9 +42,18 @@ sub = 1
 
 B_union_vec, BB_vec, B_tilde_union_vec, v_union_vec, vv_vec, v_tilde_union_vec, B_vec, B_tilde_vec, v_vec, v_tilde_vec = compute_useful_budgets(states, actions, B_max, P[sub], C[sub], R[sub], Γ[sub], T);
 
-t = 3
+t = 1
 state = 1
-act, bud, val = get_action_budget_value(4.5, B_union_vec, v_union_vec, t, state)
+b = 4.5
+a = 1
+
+act, bud, val = get_action_budget_value_det(b, B_union_vec, v_union_vec, t, state)
+val = V_function_det(b, B_union_vec, v_union_vec, t, state)
+
+B_v_S, sto_B, sto_v = compute_Q_function_stochastic_data(BB_vec[t], vv_vec[t], states, actions, P[1], C[1], R[1], Γ[1]);
+Q_i_a_b = Q_function_stochastic(b, i, a, sto_B, sto_v)
+
+
 
 
 t = 3
