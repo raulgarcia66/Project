@@ -270,8 +270,11 @@ end
 
 ## Functions for stochastic policies
 
-# TODO: Swap B_union with BB if pairs not needed
-function compute_Q_functions(B_union, v_union, states, actions, P)
+# TODO: Swap B_union with BB if pairs not needed. Currently testing function with BB_vec[1] and vv_vec[1]
+# B_S, v_S = compute_Q_functions(BB_vec[1], vv_vec[1], states, actions, P[1]);
+# B_v_S, sto_B, sto_v = compute_Q_function_stochastic_data(BB_vec[1], vv_vec[1], states, actions, P[1], C[1], R[1], Γ[1]);
+
+function compute_Q_function_stochastic_data(B_union, v_union, states, actions, P, c, r, Γ)
     # B_union[i] = vector of budgets for state i
     # v_union[i] = vector of values for state i
 
@@ -279,37 +282,66 @@ function compute_Q_functions(B_union, v_union, states, actions, P)
     B_union, v_union = compute_nondominated_budgets_values(B_union, v_union)
 
     BpB = Vector{Vector{Float64}}(undef, length(states))
+    ΔB = Vector{Vector{Float64}}(undef, length(states))
+    Δv = Vector{Vector{Float64}}(undef, length(states))
     for i in states
-        BpB[i] = compute_bang_per_buck(B_union[i], v_union[i]) # this is defined for budgets 2:end since the first budget is 0
+        BpB[i], ΔB[i], Δv[i] = compute_bang_per_buck(B_union[i], v_union[i]) # this is defined for budgets [2:end] since the first budget is 0
     end
 
-    # B_S_vec = Vector{Vector{Pair{Int,Float64}}}[]
-    # B_S_vec = Vector{Pair{Int,Float64}}[]
-    B_S = Array{Vector{Pair{Int, Tuple{Float64,Float64}}},2}(undef, length(states), length(actions))
-    v_S = Array{Vector{Pair{Int, Tuple{Float64,Float64}}},2}(undef, length(states), length(actions))
+    B_v_S = Array{Vector{Tuple{Int,Int,Float64,Float64,Float64,Float64,Float64}},2}(undef, length(states), length(actions))
+    # B_S = Array{Vector{Pair{Tuple{Int,Int}, NTuple{4,Float64}}},2}(undef, length(states), length(actions))
+    # v_S = Array{Vector{Pair{Tuple{Int,Int}, NTuple{4,Float64}}},2}(undef, length(states), length(actions))
+    sto_B = Array{Vector{Float64},2}(undef, length(states), length(actions))
+    sto_v = Array{Vector{Float64},2}(undef, length(states), length(actions))
 
     for i in states, a in actions
 
         S = compute_reachable_states(P, i, a)
 
         # TODO: Remove duplicates, since we're merging over states
-        B_S[i,a] = @pipe map(j -> 
+        B_v_S[i,a] = @pipe map(j -> 
                     begin 
-                        map(k -> j => (B_union[j][k], BpB[j][k-1]), 2:length(B_union[j]))   # budget of 0 excluded
+                        map(k -> (j, k-1, B_union[j][k], v_union[j][k], BpB[j][k-1], ΔB[j][k-1], Δv[j][k-1]), 2:length(B_union[j]))   # budget of 0 excluded
                     end, S) |> vcat(_...)
-        v_S[i,a] = @pipe map(j -> 
-                    begin 
-                        map(k -> j => (v_union[j][k], BpB[j][k-1]), 2:length(v_union[j]))   # budget of 0 excluded
-                    end, S) |> vcat(_...)
-        # println("B_S = $B_S")
+        sort!(B_v_S[i,a], by = t -> t[5], rev=true)
 
-        sorted_ind = sortperm(B_S[i,a], by = pairs -> pairs.second[2])
-        B_S[i,a] = B_S[i,a][sorted_ind]
-        v_S[i,a] = v_S[i,a][sorted_ind]
-        # sort!(B_S[i,a], by = pairs -> pairs.second[2])
-        # sort!(v_S[i,a], by = pairs -> pairs.second[2])
+        # For the m-th element of sorted B_v_S[i,a]
+            # j(m): state j, i.e., state j in b^{j}_k   # B_v_S[i,a][m][1]
+            # k(m): the useful budget index for j, i.e., the k of b^{j}_k   # B_v_S[i,a][m][2]. Prior to sorting, this is index for BpB, ΔB and Δv, while index+1 is for B_union and v_union
+            # Δb(m): budget increment   # # B_v_S[i,a][m][6]
+            # Δv(m): value increment   # B_v_S[i,a][m][7]
+        sto_B_0 = c[i,a]
+        sto_B[i,a] = map(m -> sto_B_0 + sum([ P[i, B_v_S[i,a][ℓ][1], a] * B_v_S[i,a][ℓ][6] for ℓ = 1:m ]), eachindex(B_v_S[i,a]))
+        pushfirst!(sto_B[i,a], sto_B_0)
+
+        sto_v_0 = r[i,a] + Γ * sum([ P[i, j, a] * v_union[j][1] for j in S ])
+        sto_v[i,a] = map(m -> sto_v_0 + r[i,a] + Γ * sum([ P[i, B_v_S[i,a][ℓ][1], a] * B_v_S[i,a][ℓ][7] for ℓ = 1:m ]), eachindex(B_v_S[i,a]))
+        pushfirst!(sto_v[i,a], sto_v_0)
+
+        ## Previous
+        # B_S[i,a] = @pipe map(j -> 
+        #             begin 
+        #                 map(k -> (j, k-1) => (B_union[j][k], BpB[j][k-1], ΔB[j][k-1], Δv[j][k-1]), 2:length(B_union[j]))   # budget of 0 excluded
+        #             end, S) |> vcat(_...)
+        # v_S[i,a] = @pipe map(j -> 
+        #             begin 
+        #                 map(k -> (j, k-1) => (v_union[j][k], BpB[j][k-1], ΔB[j][k-1], Δv[j][k-1]), 2:length(v_union[j]))   # budget of 0 excluded
+        #             end, S) |> vcat(_...)
+
+        # sorted_ind = sortperm(B_S[i,a], by = pairs -> pairs.second[2], rev=true)
+        # B_S[i,a] = B_S[i,a][sorted_ind]
+        # v_S[i,a] = v_S[i,a][sorted_ind]
+        # # sort!(B_S[i,a], by = pairs -> pairs.second[2], rev=true)
+        # # sort!(v_S[i,a], by = pairs -> pairs.second[2], rev=true)
+
+        # For the m-th element of sorted B_S[i,a]
+            # j(m): state j, i.e., state j in b^{j}_k   # B_S[i,a][m].first[1]
+            # k(m): the useful budget index for j, i.e., the k of b^{j}_k   # B_S[i,a][m].first[2]. Prior to sorting, this is index for BpB, ΔB and Δv, while index+1 is for B_union and v_union
+            # Δb(m): budget increment   # # B_S[i,a][m].second[3]
+            # Δv(m): value increment   # B_S[i,a][m].second[4]
     end
-    return B_S, v_S
+
+    return B_v_S, sto_B, sto_v   # B_S, v_S
 end
 
 
@@ -325,5 +357,44 @@ end
 
 
 function compute_bang_per_buck(B, v)
-    return map(k -> (v[k] - v[k-1]) / (B[k] - B[k-1]), 2:length(B))
+    Δv = map(k -> (v[k] - v[k-1]), 2:length(B))
+    ΔB = map(k -> (B[k] - B[k-1]), 2:length(B))
+    return Δv ./ ΔB, ΔB, Δv
+    # return map(k -> (v[k] - v[k-1]) / (B[k] - B[k-1]), 2:length(B))
+end
+
+
+# TODO: Add t as parameter? Lets see how the induction step is done
+function Q_function_stochastic(b, i, a, sto_B, sto_v)
+
+    if b < sto_B[i,a][1]
+        error("Budget $b is less than the smallest useful budget.")
+    elseif b > sto_B[i,a][end]
+        return sto_v[i,a][end]
+    end
+
+    ind_eq = findfirst(==(b), sto_B[i,a])
+    if ind_eq !== nothing
+        return sto_v[i,a][ind_eq]
+    else
+        ind_g = findfirst(>(b), sto_B[i,a]) - 1
+        p = (b - sto_B[i,a][ind_g]) / (sto_B[i,a][ind_g+1] - sto_B[i,a][ind_g])
+        return p * sto_v[i,a][ind_g+1] + (1-p) * sto_v[i,a][ind_g]
+    end
+end
+
+# b = sto_B[1,1][2]
+# b = sto_B[1,1][1] - 1
+# b = sto_B[1,1][end]
+# b = sto_B[1,1][end] + 1
+# b = sto_B[1,1][1] + 0.51321
+# Q_i_a_b = Q_function_stochastic(b, 1, 1, sto_B, sto_v)
+
+# TODO: Add t as parameter? Lets see how the induction step is done
+function V_function_stochastic(b, i, a, sto_B, sto_v)
+    # Graham scan or something
+end
+
+function get_action_budget_value_stochastic(b, i, B_union_vec, v_union_vec, t)
+
 end
