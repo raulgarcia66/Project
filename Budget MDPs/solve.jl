@@ -236,7 +236,23 @@ end
 # end
 
 
-function get_action_budget_value(b, B_union_vec, v_union_vec, t, i)
+function V_function_det(b, i, B_union_vec, v_union_vec, t)
+    # return action for when budget is b
+    # t is period
+    # i is state
+
+    ϵ = 1E-6
+    index = findfirst(bud -> bud.second > b + ϵ, B_union_vec[t][i])   # find first budget that exceeds b
+    if index === nothing
+        index = length(B_union_vec[t][i])   # budget is the last element
+    elseif index != 1   # first budget is 0
+        index -= 1   # our budget is the previousb
+    end
+    return v_union_vec[t][i][index].second
+end
+
+
+function get_action_budget_value_det(b, i, B_union_vec, v_union_vec, t)
     # return action for when budget is b
     # t is period
     # i is state
