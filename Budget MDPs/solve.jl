@@ -12,7 +12,7 @@ r: r(i,a)
 Γ: discount factor
 T: horizon
 """
-function compute_useful_budgets(states, actions, B_max, P, c, r, Γ, T)
+function compute_deterministic_data(states, actions, B_max, P, c, r, Γ, T)
     num_states = length(states)
     num_actions = length(actions)
 
@@ -64,7 +64,7 @@ function compute_useful_budgets(states, actions, B_max, P, c, r, Γ, T)
 
         println("About to compute B[i,a].\n")
         for i in states, a in actions
-            B[i,a], v[i,a], σ[i,a] = compute_useful_budgets_state_action(B_tilde[i,a], v_tilde[i,a], σ_tilde[i,a])
+            B[i,a], v[i,a], σ[i,a] = compute_useful_budgets_values_state_action(B_tilde[i,a], v_tilde[i,a], σ_tilde[i,a])
         end
         push!(B_vec, B)
         push!(v_vec, v)
@@ -74,6 +74,7 @@ function compute_useful_budgets(states, actions, B_max, P, c, r, Γ, T)
         # B_tilde_union[i] is the set of potentially useful budgets after unioning over actions, stored as (action => budget) pairs for state i
         # v_tilde_union[i] is the set of potentially useful values after unioning over actions, stored as (action => budget) pairs for state i
         println("About to compute B_tilde_union.\n")
+        # TODO: Remove duplicates?
         B_tilde_union = map(i -> 
                             begin
                                 @pipe map(a -> map(b -> a => b, B[i,a]), actions) |> collect(Iterators.flatten(_))
@@ -92,7 +93,7 @@ function compute_useful_budgets(states, actions, B_max, P, c, r, Γ, T)
         println("About to compute B_union.\n")
         B_union, v_union = copy(B_tilde_union), copy(v_tilde_union)
         for i in states
-            B_union[i], v_union[i] = computed_useful_budgets_state(B_tilde_union[i], v_tilde_union[i])
+            B_union[i], v_union[i] = computed_useful_budgets_values_state(B_tilde_union[i], v_tilde_union[i])
             # B_union[i], v_union[i], σ_union[i] = computed_useful_budgets_state(B_tilde_union[i], v_tilde_union[i], σ_tilde_union[i])
         end
         push!(B_union_vec, B_union)
@@ -120,13 +121,14 @@ function compute_useful_budgets(states, actions, B_max, P, c, r, Γ, T)
     reverse!(v_vec)
     reverse!(v_tilde_vec)
 
-    return B_union_vec, BB_vec, B_tilde_union_vec, v_union_vec, vv_vec, v_tilde_union_vec, B_vec, B_tilde_vec, v_vec, v_tilde_vec   # , σ_vec, σ_tilde_vec
+    # return B_union_vec, BB_vec, B_tilde_union_vec, v_union_vec, vv_vec, v_tilde_union_vec, B_vec, B_tilde_vec, v_vec, v_tilde_vec   # , σ_vec, σ_tilde_vec
+    return B_union_vec, BB_vec, v_union_vec, vv_vec
 end
 
 
-function compute_reachable_states(P_sub, i, a)
+function compute_reachable_states(P, i, a)
     ϵ = 1E-5
-    return filter(j -> P_sub[i,j,a] > ϵ, 1:size(P_sub,2))
+    return filter(j -> P[i,j,a] > ϵ, 1:size(P,2))
 end
 
 
@@ -177,7 +179,7 @@ function compute_potentially_useful_values_state_action(i, a, v, assignments, S,
 end
 
 
-function compute_useful_budgets_state_action(b, v, σ)
+function compute_useful_budgets_values_state_action(b, v, σ)
     # b: set of potentially useful budgets, for some state and action
     # v: set of potentially useful values, for some state and action
     # σ: set of permutations for potentially useful budgets, for some state and action
@@ -203,7 +205,7 @@ function compute_useful_budgets_state_action(b, v, σ)
     end
 end
 
-function computed_useful_budgets_state(B, v)
+function computed_useful_budgets_values_state(B, v)
     # B is the set of potentially useful budgets after unioning over actions, stored as (action => budget) pairs, for some state
     # v is the set of potentially useful values after unioning over actions, stored as (action => budget) pairs, for some state
 
@@ -227,16 +229,12 @@ function computed_useful_budgets_state(B, v)
 end
 
 
-# struct Policy
-#     B_union_vec
-#     v_union_vec
-#     T
-#     action
-#     # functions
+# function Q_function_det(b, i, B_union_vec, v_union_vec, t)
+
 # end
 
 
-function V_function_det(b, i, B_union_vec, v_union_vec, t)
+function V_function_det(b, i, B_union_vec::Vector{Vector{Vector{Pair{Int,Float64}}}}, v_union_vec::Vector{Vector{Vector{Pair{Int,Float64}}}}, t)
     # return action for when budget is b
     # t is period
     # i is state
@@ -249,6 +247,22 @@ function V_function_det(b, i, B_union_vec, v_union_vec, t)
         index -= 1   # our budget is the previousb
     end
     return v_union_vec[t][i][index].second
+end
+
+
+function V_function_det(b, i, BB_vec::Vector{Vector{Vector{Float64}}}, vv_vec::Vector{Vector{Vector{Float64}}}, t)
+    # return action for when budget is b
+    # t is period
+    # i is state
+
+    ϵ = 1E-6
+    index = findfirst(bud -> bud > b + ϵ, BB_vec[t][i])   # find first budget that exceeds b
+    if index === nothing
+        index = length(BB_vec[t][i])   # budget is the last element
+    elseif index != 1   # first budget is 0
+        index -= 1   # our budget is the previousb
+    end
+    return vv_vec[t][i][index]
 end
 
 
@@ -268,24 +282,90 @@ function get_action_budget_value_det(b, i, B_union_vec, v_union_vec, t)
 end
 
 
+#################################################################################
 ## Functions for stochastic policies
 
-# TODO: Swap B_union with BB if pairs not needed. Currently testing function with BB_vec[1] and vv_vec[1]
-# B_S, v_S = compute_Q_functions(BB_vec[1], vv_vec[1], states, actions, P[1]);
-# B_v_S, sto_B, sto_v = compute_Q_function_stochastic_data(BB_vec[1], vv_vec[1], states, actions, P[1], C[1], R[1], Γ[1]);
+# TODO: Add t as parameter? Lets see how the induction step is done
+function compute_V_function_stochastic_data(BB_vec, vv_vec, states, actions, P, c, r, Γ, T)
+    # num_states = length(states)
+    # num_actions = length(actions)
 
-function compute_Q_function_stochastic_data(B_union, v_union, states, actions, P, c, r, Γ)
-    # B_union[i] = vector of budgets for state i
-    # v_union[i] = vector of values for state i
+    # Store data
+    B_v_S_vec = Matrix{Vector{Tuple{Int64, Int64, Float64, Float64, Float64, Float64, Float64}}}[]
+    sto_B_vec = Matrix{Vector{Float64}}[]
+    sto_v_vec =  Matrix{Vector{Float64}}[]
+    
+    Q_star_vec = Vector{Vector{Tuple{Int64, Float64, Float64}}}[]
+    sto_B_V_vec = Vector{Vector{Float64}}[]
+    sto_v_V_vec = Vector{Vector{Float64}}[]
 
-    # B_ND_union, v_ND_union = compute_nondominated_budgets_values(B_union, v_union)
-    B_union, v_union = compute_nondominated_budgets_values(B_union, v_union)
+    # Initiate data
+    Q_star = Vector{Vector{Tuple{Int64, Float64, Float64}}}(undef, length(states))
+    # sto_B_V = Vector{Vector{Float64}}(undef, length(states))
+    # sto_v_V = Vector{Vector{Float64}}(undef, length(states))
+    B_v_S = Array{Vector{Tuple{Int,Int,Float64,Float64,Float64,Float64,Float64}},2}(undef, length(states), length(actions))
+    sto_B = Array{Vector{Float64},2}(undef, length(states), length(actions))
+    sto_v = Array{Vector{Float64},2}(undef, length(states), length(actions))
+
+    # TODO: Remove nondominated points here too
+    sto_B_V = copy(BB_vec[end])
+    push!(sto_B_V_vec, copy(sto_B_V))
+    sto_v_V = copy(vv_vec[end])
+    push!(sto_v_V_vec, copy(sto_v_V))
+
+    # for t = T+1:-1:1
+    for t = T:-1:1
+        # TODO: Should be feeding in budgets/values of new value function with respect to the stochastic method?
+        # B_v_S, sto_B, sto_v = compute_Q_function_stochastic_data(BB_vec[t], vv_vec[t], states, actions, P, c, r, Γ)
+        println("sto_B_V (t = $t) = before\n$sto_B_V")
+        println("sto_v_V (t = $t) = before\n$sto_v_V\n")
+        B_v_S, sto_B, sto_v = compute_Q_function_stochastic_data(sto_B_V, sto_v_V, states, actions, P, c, r, Γ)
+        push!(B_v_S_vec, copy(B_v_S))
+        push!(sto_B_vec, copy(sto_B))
+        push!(sto_v_vec, copy(sto_v))
+        println("sto_B (t = $t) = \n$sto_B")
+        println("sto_v (t = $t) = \n$sto_v\n")
+
+        for i in states
+            Q_star[i], sto_B_V[i], sto_v_V[i] = compute_V_function_stochastic_data_state(sto_B[i,:], sto_v[i,:])
+        end
+        push!(Q_star_vec, copy(Q_star))
+        push!(sto_B_V_vec, copy(sto_B_V))
+        push!(sto_v_V_vec, copy(sto_v_V))
+        println("sto_B_V (t = $t) = after\n$sto_B_V")
+        println("sto_v_V (t = $t) = after\n$sto_v_V\n\n\n")
+    end
+
+    reverse!(B_v_S_vec)
+    reverse!(sto_B_vec)
+    reverse!(sto_v_vec)
+    reverse!(Q_star_vec)
+    reverse!(sto_B_V_vec)
+    reverse!(sto_v_V_vec)
+
+    # TODO: reverse vector for chronology as appropriate
+    return Q_star_vec, sto_B_V_vec, sto_v_V_vec, sto_B_vec, sto_v_vec
+end
+
+
+function compute_Q_function_stochastic_data(BB, vv, states, actions, P, c, r, Γ)
+    # # B_union[i] = vector of (action => budgets) for state i
+    # # v_union[i] = vector of (action => values) for state i
+
+    # B_union, v_union = compute_nondominated_budgets_values_Q(B_union, v_union)
+    # BB = map(B_union_state -> map(bevo -> bevo.second, B_union_state) , B_union)
+    # vv = map(v_union_state -> map(bevo -> bevo.second, v_union_state) , v_union)
+
+
+    # BB[i] = vector of budgets for state i
+    # vv[i] = vector of values for state i
+    BB, vv = compute_nondominated_budgets_values_Q(BB, vv)
 
     BpB = Vector{Vector{Float64}}(undef, length(states))
     ΔB = Vector{Vector{Float64}}(undef, length(states))
     Δv = Vector{Vector{Float64}}(undef, length(states))
     for i in states
-        BpB[i], ΔB[i], Δv[i] = compute_bang_per_buck(B_union[i], v_union[i]) # this is defined for budgets [2:end] since the first budget is 0
+        BpB[i], ΔB[i], Δv[i] = compute_bang_per_buck(BB[i], vv[i]) # this is defined for budgets [2:end] since the first budget is 0
     end
 
     B_v_S = Array{Vector{Tuple{Int,Int,Float64,Float64,Float64,Float64,Float64}},2}(undef, length(states), length(actions))
@@ -301,7 +381,9 @@ function compute_Q_function_stochastic_data(B_union, v_union, states, actions, P
         # TODO: Remove duplicates, since we're merging over states
         B_v_S[i,a] = @pipe map(j -> 
                     begin 
-                        map(k -> (j, k-1, B_union[j][k], v_union[j][k], BpB[j][k-1], ΔB[j][k-1], Δv[j][k-1]), 2:length(B_union[j]))   # budget of 0 excluded
+                        map(k -> (j, k-1, BB[j][k], vv[j][k], BpB[j][k-1], ΔB[j][k-1], Δv[j][k-1]), 2:length(BB[j]))   # budget of 0 excluded
+                        # Fix sort!() and sto_B/sto_v if use bottom line with action
+                        # map(k -> (j, k-1, B_union[j][k].first, BB[j][k], vv[j][k], BpB[j][k-1], ΔB[j][k-1], Δv[j][k-1]), 2:length(BB[j]))   # budget of 0 excluded
                     end, S) |> vcat(_...)
         sort!(B_v_S[i,a], by = t -> t[5], rev=true)
 
@@ -314,8 +396,8 @@ function compute_Q_function_stochastic_data(B_union, v_union, states, actions, P
         sto_B[i,a] = map(m -> sto_B_0 + sum([ P[i, B_v_S[i,a][ℓ][1], a] * B_v_S[i,a][ℓ][6] for ℓ = 1:m ]), eachindex(B_v_S[i,a]))
         pushfirst!(sto_B[i,a], sto_B_0)
 
-        sto_v_0 = r[i,a] + Γ * sum([ P[i, j, a] * v_union[j][1] for j in S ])
-        sto_v[i,a] = map(m -> sto_v_0 + r[i,a] + Γ * sum([ P[i, B_v_S[i,a][ℓ][1], a] * B_v_S[i,a][ℓ][7] for ℓ = 1:m ]), eachindex(B_v_S[i,a]))
+        sto_v_0 = r[i,a] + Γ * sum([ P[i, j, a] * vv[j][1] for j in S ])
+        sto_v[i,a] = map(m -> r[i,a] + Γ * (sto_v_0 + sum([ P[i, B_v_S[i,a][ℓ][1], a] * B_v_S[i,a][ℓ][7] for ℓ = 1:m ])), eachindex(B_v_S[i,a]))
         pushfirst!(sto_v[i,a], sto_v_0)
 
         ## Previous
@@ -345,8 +427,59 @@ function compute_Q_function_stochastic_data(B_union, v_union, states, actions, P
 end
 
 
-# TODO: Figure this function out
-function compute_nondominated_budgets_values(B_union, v_union)
+# TODO: Add t as parameter? Lets see how the induction step is done
+function compute_V_function_stochastic_data_state(sto_B, sto_v)
+    # sto_B[a] = vector of budgets for action a, for some state
+    # sto_v[a] = vector of values for action a, for some state
+
+    # Create Q_star to prune points
+    Q_star = @pipe map(a -> 
+                        begin
+                            map(k -> (a, sto_B[a][k], sto_v[a][k]), eachindex(sto_B[a]))
+                        end, eachindex(sto_B)) |> vcat(_...)
+    sort!(Q_star, by = tup -> tup[2])   # order in increasing budgets
+    Q_star = compute_nondominated_budgets_values_V(Q_star)
+
+    # TODO: Keep this vector?
+    actions_Q_star = map(tup -> tup[1], Q_star)
+
+    sto_B_i = map(tup -> tup[2], Q_star)   # nondominated
+    sto_v_i = map(tup -> tup[3], Q_star)   # nondominated
+
+    # Graham scan
+    Q_star_final = [Q_star[1]]
+    sto_B_V_i = [sto_B_i[1]]
+    sto_v_V_i = [sto_v_i[1]]
+    for j in 2:length(Q_star)
+        last_point_not_deleted = false
+        while !(last_point_not_deleted)
+            if length(sto_B_V_i) > 1
+                if (sto_v_i[j] - sto_v_V_i[end]) / (sto_B_i[j] - sto_B_V_i[end]) >=
+                        (sto_v_V_i[end] - sto_v_V_i[end-1]) / (sto_B_V_i[end] - sto_B_V_i[end-1])
+                    pop!(Q_star_final)
+                    pop!(sto_B_V_i)
+                    pop!(sto_v_V_i)
+                    last_point_not_deleted = false
+                else
+                    push!(Q_star_final, Q_star[j])
+                    push!(sto_B_V_i, sto_B_i[j])
+                    push!(sto_v_V_i, sto_v_i[j])
+                    last_point_not_deleted = true
+                end
+            else
+                push!(Q_star_final, Q_star[j])
+                push!(sto_B_V_i, sto_B_i[j])
+                push!(sto_v_V_i, sto_v_i[j])
+                last_point_not_deleted = true
+            end
+        end
+    end
+
+    return Q_star_final, sto_B_V_i, sto_v_V_i
+end
+
+
+function compute_nondominated_budgets_values_Q(B_union, v_union)
     # B_union[i] = vector of budgets for state i
     # v_union[i] = vector of values for state i
     
@@ -361,6 +494,17 @@ function compute_bang_per_buck(B, v)
     ΔB = map(k -> (B[k] - B[k-1]), 2:length(B))
     return Δv ./ ΔB, ΔB, Δv
     # return map(k -> (v[k] - v[k-1]) / (B[k] - B[k-1]), 2:length(B))
+end
+
+
+# TODO: Figure this function out. Reuse above function if possible
+function compute_nondominated_budgets_values_V(Q_star)
+    # Q_star is vector of (action, budget, value) tuples for some state sorted in increasind order of budget
+    # This function won't be nondecreasing in budget (ignoring actions)
+    
+    # Useful budget Q_star[k][2] is said to dominated if ∃ two different budget points Q_star[k-][2] ≤  Q_star[k][2] ≤ Q_star[k+][2] (k- < k < k+) such that
+    # (1-α)*Q_star[k-][3] + α*Q_star[k+][3] > Q_star[k][3], where α = b - b_{k-} / b_{k+} - b_{k-}
+    return Q_star
 end
 
 
@@ -383,16 +527,9 @@ function Q_function_stochastic(b, i, a, sto_B, sto_v)
     end
 end
 
-# b = sto_B[1,1][2]
-# b = sto_B[1,1][1] - 1
-# b = sto_B[1,1][end]
-# b = sto_B[1,1][end] + 1
-# b = sto_B[1,1][1] + 0.51321
-# Q_i_a_b = Q_function_stochastic(b, 1, 1, sto_B, sto_v)
 
-# TODO: Add t as parameter? Lets see how the induction step is done
-function V_function_stochastic(b, i, a, sto_B, sto_v)
-    # Graham scan or something
+function V_function_stochastic(b, i, sto_B, sto_v, t)
+
 end
 
 function get_action_budget_value_stochastic(b, i, B_union_vec, v_union_vec, t)
