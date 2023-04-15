@@ -6,9 +6,9 @@ function plot_V_det(i, t, B::Vector{Float64}, v::Vector{Float64}; save_plot=fals
     # TODO: Add action ticks to scatter to denote the action
 
     plot(title="V(s = $i; t = $t) deterministic", xlabel="Budget", ylims = (-0.05 * maximum(v), 1.05 * maximum(v)), legend=false)  # assuming minimum(v) = 0
-    for i in 1:(length(B)-1)
-        plot!([B[i]; B[i+1]], [v[i]; v[i]]) # ls = :dash)
-        scatter!([B[i]], [v[i]])
+    for j in 1:(length(B)-1)
+        plot!([B[j]; B[j+1]], [v[j]; v[j]]) # ls = :dash)
+        scatter!([B[j]], [v[j]])
     end
     display(scatter!([B[end]], [v[end]]))
 
@@ -25,9 +25,9 @@ function plot_V_det(i, t, B::Vector{Pair{Int, Float64}}, v::Vector{Pair{Int, Flo
     # TODO: Add action ticks to scatter to denote the action
 
     plot(title="V(s = $i; t = $t) deterministic", xlabel="Budget", ylims = (-0.05 * maximum(v), 1.05 * maximum(v)), legend=false)  # assuming minimum(v) = 0
-    for i in 1:(length(B)-1)
-        plot!([B[i]; B[i+1]], [v[i]; v[i]]) # ls = :dash)
-        scatter!([B[i]], [v[i]])
+    for j in 1:(length(B)-1)
+        plot!([B[j]; B[j+1]], [v[j]; v[j]]) # ls = :dash)
+        scatter!([B[j]], [v[j]])
     end
     display(scatter!([B[end]], [v[end]]))
 
@@ -43,9 +43,9 @@ function plot_V_stochastic(i, t, B::Vector{Float64}, v::Vector{Float64}; save_pl
     # TODO: Add action ticks to scatter to denote the action
 
     plot(title="V(s = $i; t = $t) stochastic", xlabel="Budget", ylims = (-0.05 * maximum(v), 1.05 * maximum(v)), legend=false)  # assuming minimum(v) = 0
-    for i in 1:(length(B)-1)
-        plot!([B[i]; B[i+1]], [v[i]; v[i+1]]) # ls = :dash)
-        scatter!([B[i]], [v[i]])
+    for j in 1:(length(B)-1)
+        plot!([B[j]; B[j+1]], [v[j]; v[j+1]]) # ls = :dash)
+        scatter!([B[j]], [v[j]])
     end
     display(scatter!([B[end]], [v[end]]))
 
