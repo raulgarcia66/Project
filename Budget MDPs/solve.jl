@@ -38,7 +38,7 @@ function compute_deterministic_data(states, actions, B_max, P, c, r, Γ, T)
     B = [[0.0] for _ = 1:num_states, _ = 1:num_actions]
     # push!(B_vec, B)
     BB = [[0.0] for _ = 1:num_states]   # each state at "t = 0 stages to go" has the sole useful budget level of 0
-    push!(BB_vec, BB)
+    push!(BB_vec, copy(BB))
 
     v_tilde = [[0.0] for _ = 1:num_states, _ = 1:num_actions]
     # push!(v_tilde_vec, v_tilde)
@@ -51,23 +51,23 @@ function compute_deterministic_data(states, actions, B_max, P, c, r, Γ, T)
     σ = [[[1]] for _ = 1:num_states, _ = 1:num_actions]
     
     for t = 1:T
-        println("t = $t \n") #BB = $BB \nBB length: $(length(BB)) \n vv = $vv \nvv length: $(length(vv))\n")
+        println("Iteration = $t \n")
         println("About to compute B_tilde[i,a].\n")
         for i in states, a in actions
             S = compute_reachable_states(P, i, a)   # reachable states from i after taking action a
             B_tilde[i,a], σ_tilde[i,a] = compute_potentially_useful_budgets_state_action(i, a, BB, S, B_max, P, c, Γ)
             v_tilde[i,a] = compute_potentially_useful_values_state_action(i, a, vv, σ_tilde[i,a], S, P, r[i,a], Γ)
         end
-        push!(B_tilde_vec, B_tilde)
-        push!(v_tilde_vec, v_tilde)
+        push!(B_tilde_vec, copy(B_tilde))
+        push!(v_tilde_vec, copy(v_tilde))
         # push!(σ_tilde_vec, σ_tilde)
 
         println("About to compute B[i,a].\n")
         for i in states, a in actions
             B[i,a], v[i,a], σ[i,a] = compute_useful_budgets_values_state_action(B_tilde[i,a], v_tilde[i,a], σ_tilde[i,a])
         end
-        push!(B_vec, B)
-        push!(v_vec, v)
+        push!(B_vec, copy(B))
+        push!(v_vec, copy(v))
         # push!(σ_vec, σ)
 
         ## Take union of B over actions a
@@ -83,8 +83,8 @@ function compute_deterministic_data(states, actions, B_max, P, c, r, Γ, T)
                             begin
                                 @pipe map(a -> map(b -> a => b, v[i,a]), actions) |> collect(Iterators.flatten(_))
                             end, states)
-        push!(B_tilde_union_vec, B_tilde_union)
-        push!(v_tilde_union_vec, v_tilde_union)
+        push!(B_tilde_union_vec, copy(B_tilde_union))
+        push!(v_tilde_union_vec, copy(v_tilde_union))
 
         # println("B_tilde_union: $(B_tilde_union)")
         # println("v_tilde_union: $(v_tilde_union)\n")
@@ -96,17 +96,17 @@ function compute_deterministic_data(states, actions, B_max, P, c, r, Γ, T)
             B_union[i], v_union[i] = computed_useful_budgets_values_state(B_tilde_union[i], v_tilde_union[i])
             # B_union[i], v_union[i], σ_union[i] = computed_useful_budgets_state(B_tilde_union[i], v_tilde_union[i], σ_tilde_union[i])
         end
-        push!(B_union_vec, B_union)
-        push!(v_union_vec, v_union)
+        push!(B_union_vec, copy(B_union))
+        push!(v_union_vec, copy(v_union))
         # push!(σ_union_vec, σ_union)
 
         # println("B_union: $(B_union)")
         # println("v_union: $(v_union)\n")
 
         BB = map(B_union_state -> map(bevo -> bevo.second, B_union_state) , B_union)
-        push!(BB_vec, BB)
+        push!(BB_vec, copy(BB))
         vv = map(v_union_state -> map(bevo -> bevo.second, v_union_state) , v_union)
-        push!(vv_vec, vv)
+        push!(vv_vec, copy(vv))
     end
 
     # Order chronologically
@@ -122,7 +122,7 @@ function compute_deterministic_data(states, actions, B_max, P, c, r, Γ, T)
     reverse!(v_tilde_vec)
 
     # return B_union_vec, BB_vec, B_tilde_union_vec, v_union_vec, vv_vec, v_tilde_union_vec, B_vec, B_tilde_vec, v_vec, v_tilde_vec   # , σ_vec, σ_tilde_vec
-    return B_union_vec, BB_vec, v_union_vec, vv_vec
+    return B_union_vec, v_union_vec, BB_vec, vv_vec
 end
 
 
@@ -229,7 +229,8 @@ function computed_useful_budgets_values_state(B, v)
 end
 
 
-# function Q_function_det(b, i, B_union_vec, v_union_vec, t)
+# TODO:
+# function Q_function_det(b, i, B_vec, v_vec, t)
 
 # end
 
