@@ -365,7 +365,7 @@ function compute_Q_function_stochastic_data(B, v, states, actions, P, c, r, Γ)
         # TODO: Remove duplicates, since we're merging over states
         B_v_S[i,a] = @pipe map(j -> 
                     begin 
-                        map(k -> (j, k-1, B[j][k], v[j][k], BpB[j][k-1], ΔB[j][k-1], Δv[j][k-1]), 2:length(BB[j]))   # budget of 0 excluded
+                        map(k -> (j, k-1, B[j][k], v[j][k], BpB[j][k-1], ΔB[j][k-1], Δv[j][k-1]), 2:length(B[j]))   # budget of 0 excluded
                         # Fix sort!() and sto_B/sto_v if I use bottom line with action inserted
                         # map(k -> (j, k-1, B_union[j][k].first, B[j][k], v[j][k], BpB[j][k-1], ΔB[j][k-1], Δv[j][k-1]), 2:length(BB[j]))   # budget of 0 excluded
                     end, S) |> vcat(_...)
