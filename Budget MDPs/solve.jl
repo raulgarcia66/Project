@@ -342,10 +342,14 @@ function compute_stochastic_data(states, actions, P, c, r, Γ, T)
 end
 
 
-function compute_Q_function_stochastic_data(B, v, states, actions, P, c, r, Γ)
+function compute_Q_function_stochastic_data(B::Vector{Vector{Float64}}, v::Vector{Vector{Float64}}, states, actions, P, c, r, Γ)
     # B[i] = vector of budgets for state i
     # v[i] = vector of values for state i
+    # Must be ordered by increasing budget
     B, v = compute_nondominated_budgets_values_Q(B, v)
+    # for i in states
+    #     plot_V_stochastic(i, B[i], v[i])
+    # end
 
     BpB = Vector{Vector{Float64}}(undef, length(states))
     ΔB = Vector{Vector{Float64}}(undef, length(states))
@@ -380,7 +384,7 @@ function compute_Q_function_stochastic_data(B, v, states, actions, P, c, r, Γ)
         sto_B[i,a] = map(m -> sto_B_0 + sum([ P[i, B_v_S[i,a][ℓ][1], a] * B_v_S[i,a][ℓ][6] for ℓ = 1:m ]), eachindex(B_v_S[i,a]))
         pushfirst!(sto_B[i,a], sto_B_0)
 
-        sto_v_0 = r[i,a] + Γ * sum([ P[i, j, a] * vv[j][1] for j in S ])
+        sto_v_0 = r[i,a] + Γ * sum([ P[i, j, a] * v[j][1] for j in S ])
         sto_v[i,a] = map(m -> r[i,a] + Γ * (sto_v_0 + sum([ P[i, B_v_S[i,a][ℓ][1], a] * B_v_S[i,a][ℓ][7] for ℓ = 1:m ])), eachindex(B_v_S[i,a]))
         pushfirst!(sto_v[i,a], sto_v_0)
 
@@ -421,10 +425,105 @@ function compute_V_function_stochastic_data_state(sto_B, sto_v)
                             map(k -> (a, sto_B[a][k], sto_v[a][k]), eachindex(sto_B[a]))
                         end, eachindex(sto_B)) |> vcat(_...)
     sort!(Q_star, by = tup -> tup[2])   # order in increasing budgets
-    Q_star = compute_nondominated_budgets_values_V(Q_star)
+    Q_star_final, sto_B_V_i, sto_v_V_i = compute_nondominated_budgets_values_V(Q_star)
 
-    # TODO: Keep this vector?
-    # actions_Q_star = map(tup -> tup[1], Q_star)
+    return Q_star_final, sto_B_V_i, sto_v_V_i
+
+    # sto_B_i = map(tup -> tup[2], Q_star)   # nondominated
+    # sto_v_i = map(tup -> tup[3], Q_star)   # nondominated
+
+    # # Graham scan
+    # Q_star_final = [Q_star[1]]
+    # sto_B_V_i = [sto_B_i[1]]
+    # sto_v_V_i = [sto_v_i[1]]
+    # for j in 2:length(Q_star)
+    #     last_point_not_deleted = false
+    #     while !(last_point_not_deleted)
+    #         if length(sto_B_V_i) > 1
+    #             if (sto_v_i[j] - sto_v_V_i[end]) / (sto_B_i[j] - sto_B_V_i[end]) >=
+    #                     (sto_v_V_i[end] - sto_v_V_i[end-1]) / (sto_B_V_i[end] - sto_B_V_i[end-1])
+    #                 pop!(Q_star_final)
+    #                 pop!(sto_B_V_i)
+    #                 pop!(sto_v_V_i)
+    #                 last_point_not_deleted = false
+    #                 println("Point removed in compute_V_function_stochastic_data_state")
+    #             else
+    #                 push!(Q_star_final, Q_star[j])
+    #                 push!(sto_B_V_i, sto_B_i[j])
+    #                 push!(sto_v_V_i, sto_v_i[j])
+    #                 last_point_not_deleted = true
+    #             end
+    #         else
+    #             push!(Q_star_final, Q_star[j])
+    #             push!(sto_B_V_i, sto_B_i[j])
+    #             push!(sto_v_V_i, sto_v_i[j])
+    #             last_point_not_deleted = true
+    #         end
+    #     end
+    # end
+
+    # return Q_star_final, sto_B_V_i, sto_v_V_i
+end
+
+
+function compute_nondominated_budgets_values_Q(B::Vector{Vector{Float64}}, v::Vector{Vector{Float64}})
+    # B[i] = vector of budgets for state i
+    # v[i] = vector of values for state i
+    
+    # Given useful budgets for state i, B[i], B[i][k] is said to dominated if ∃ two bracketing levels B[i][k-], B[i][k+] (k- < k < k+) such that
+    # some convex combination of their values dominates that of B[i][k], i.e. (1-p)*v[i][k-] + p*v[i][k+] > v[i][k]
+    # return B, v
+    B_nd = Vector{Vector{Float64}}(undef, length(B))
+    v_nd = Vector{Vector{Float64}}(undef, length(v))
+
+    for i in eachindex(B)
+        B_nd[i] = [B[i][1]]
+        v_nd[i] = [v[i][1]]
+        # Graham scan
+        for j in 2:length(B[i])
+            last_point_not_deleted = false
+            while !(last_point_not_deleted)
+                if length(B_nd[i]) > 1
+                    if (v[i][j] - v_nd[i][end]) / (B[i][j] - B_nd[i][end]) >=
+                            (v_nd[i][end] - v_nd[i][end-1]) / (B_nd[i][end] - B_nd[i][end-1])
+                        pop!(B_nd[i])
+                        pop!(v_nd[i])
+                        last_point_not_deleted = false
+                        # println("Point removed in compute_nondominated_budgets_values_Q")
+                    else
+                        push!(B_nd[i], B[i][j])
+                        push!(v_nd[i], v[i][j])
+                        last_point_not_deleted = true
+                    end
+                else
+                    push!(B_nd[i], B[i][j])
+                    push!(v_nd[i], v[i][j])
+                    last_point_not_deleted = true
+                end
+            end
+        end
+    end
+
+    return B_nd, v_nd
+end
+
+
+function compute_bang_per_buck(B, v)
+    Δv = map(k -> (v[k] - v[k-1]), 2:length(B))
+    ΔB = map(k -> (B[k] - B[k-1]), 2:length(B))
+    return Δv ./ ΔB, ΔB, Δv
+    # return map(k -> (v[k] - v[k-1]) / (B[k] - B[k-1]), 2:length(B))
+end
+
+
+function compute_nondominated_budgets_values_V(Q_star::Vector{Tuple{Int,Float64,Float64}})
+    # Q_star is vector of (action, budget, value) tuples for some state, sorted in increasing order of budget
+    # This function won't be nondecreasing in budget (ignoring actions)
+    
+    # Useful budget Q_star[k][2] is said to dominated if ∃ two different budget points Q_star[k-][2] ≤  Q_star[k][2] ≤ Q_star[k+][2] (k- < k < k+) such that
+    # (1-α)*Q_star[k-][3] + α*Q_star[k+][3] > Q_star[k][3], where α = b - b_{k-} / b_{k+} - b_{k-}
+    # return Q_star
+
     sto_B_i = map(tup -> tup[2], Q_star)   # nondominated
     sto_v_i = map(tup -> tup[3], Q_star)   # nondominated
 
@@ -442,6 +541,7 @@ function compute_V_function_stochastic_data_state(sto_B, sto_v)
                     pop!(sto_B_V_i)
                     pop!(sto_v_V_i)
                     last_point_not_deleted = false
+                    # println("Point removed in compute_nondominated_budgets_values_V")
                 else
                     push!(Q_star_final, Q_star[j])
                     push!(sto_B_V_i, sto_B_i[j])
@@ -458,36 +558,6 @@ function compute_V_function_stochastic_data_state(sto_B, sto_v)
     end
 
     return Q_star_final, sto_B_V_i, sto_v_V_i
-end
-
-
-# TODO: Finish.
-function compute_nondominated_budgets_values_Q(B_union, v_union)
-    # B_union[i] = vector of budgets for state i
-    # v_union[i] = vector of values for state i
-    
-    # Given useful budgets for state i, B[i], B[i][k] is said to dominated if ∃ two bracketing levels B[i][k-], B[i][k+] (k- < k < k+) such that
-    # some convex combination of their values dominates that of B[i][k], i.e. (1-p)*v[i][k-] + p*v[i][k+] > v[i][k]
-    return B_union, v_union
-end
-
-
-function compute_bang_per_buck(B, v)
-    Δv = map(k -> (v[k] - v[k-1]), 2:length(B))
-    ΔB = map(k -> (B[k] - B[k-1]), 2:length(B))
-    return Δv ./ ΔB, ΔB, Δv
-    # return map(k -> (v[k] - v[k-1]) / (B[k] - B[k-1]), 2:length(B))
-end
-
-
-# TODO: Finish. Reuse analagous Q function if possible
-function compute_nondominated_budgets_values_V(Q_star)
-    # Q_star is vector of (action, budget, value) tuples for some state sorted in increasind order of budget
-    # This function won't be nondecreasing in budget (ignoring actions)
-    
-    # Useful budget Q_star[k][2] is said to dominated if ∃ two different budget points Q_star[k-][2] ≤  Q_star[k][2] ≤ Q_star[k+][2] (k- < k < k+) such that
-    # (1-α)*Q_star[k-][3] + α*Q_star[k+][3] > Q_star[k][3], where α = b - b_{k-} / b_{k+} - b_{k-}
-    return Q_star
 end
 
 
@@ -638,4 +708,4 @@ end
 # push!(y, x[1])
 # x[1][3] = 6
 # x
-# y
+# y   # y is also updated
