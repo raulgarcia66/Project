@@ -286,11 +286,7 @@ end
 #################################################################################
 ## Functions for stochastic policies
 
-# TODO: Add t as parameter? Lets see how the induction step is done
-function compute_V_function_stochastic_data(BB_vec, vv_vec, states, actions, P, c, r, Γ, T)
-    # num_states = length(states)
-    # num_actions = length(actions)
-
+function compute_stochastic_data(states, actions, P, c, r, Γ, T)
     # Store data
     B_v_S_vec = Matrix{Vector{Tuple{Int64, Int64, Float64, Float64, Float64, Float64, Float64}}}[]
     sto_B_vec = Matrix{Vector{Float64}}[]
@@ -301,31 +297,29 @@ function compute_V_function_stochastic_data(BB_vec, vv_vec, states, actions, P, 
     sto_v_V_vec = Vector{Vector{Float64}}[]
 
     # Initiate data
-    Q_star = Vector{Vector{Tuple{Int64, Float64, Float64}}}(undef, length(states))
-    # sto_B_V = Vector{Vector{Float64}}(undef, length(states))
-    # sto_v_V = Vector{Vector{Float64}}(undef, length(states))
     B_v_S = Array{Vector{Tuple{Int,Int,Float64,Float64,Float64,Float64,Float64}},2}(undef, length(states), length(actions))
     sto_B = Array{Vector{Float64},2}(undef, length(states), length(actions))
     sto_v = Array{Vector{Float64},2}(undef, length(states), length(actions))
-
-    # TODO: Remove nondominated points here too
-    sto_B_V = copy(BB_vec[end])
+    Q_star = Vector{Vector{Tuple{Int64, Float64, Float64}}}(undef, length(states))
+    # If we copy from BB/vv_vec, would need remove nondominated points as well
+    # sto_B_V = copy(BB_vec[end])
+    # sto_v_V = copy(vv_vec[end])
+    sto_B_V = [[0.0] for _ = 1:length(states)]
     push!(sto_B_V_vec, copy(sto_B_V))
-    sto_v_V = copy(vv_vec[end])
+    sto_v_V = [[0.0] for _ = 1:length(states)]
     push!(sto_v_V_vec, copy(sto_v_V))
 
-    # for t = T+1:-1:1
-    for t = T:-1:1
-        # TODO: Should be feeding in budgets/values of new value function with respect to the stochastic method?
-        # B_v_S, sto_B, sto_v = compute_Q_function_stochastic_data(BB_vec[t], vv_vec[t], states, actions, P, c, r, Γ)
-        println("sto_B_V (t = $t) = before\n$sto_B_V")
-        println("sto_v_V (t = $t) = before\n$sto_v_V\n")
+    for t = 1:T
+        println("Iteration = $t \n")
+        println("About to compute sto_B and sto_v.\n")
+        # println("sto_B_V (t = $t) = before\n$sto_B_V")
+        # println("sto_v_V (t = $t) = before\n$sto_v_V\n")
         B_v_S, sto_B, sto_v = compute_Q_function_stochastic_data(sto_B_V, sto_v_V, states, actions, P, c, r, Γ)
         push!(B_v_S_vec, copy(B_v_S))
         push!(sto_B_vec, copy(sto_B))
         push!(sto_v_vec, copy(sto_v))
-        println("sto_B (t = $t) = \n$sto_B")
-        println("sto_v (t = $t) = \n$sto_v\n")
+        # println("sto_B (t = $t) = \n$sto_B")
+        # println("sto_v (t = $t) = \n$sto_v\n")
 
         for i in states
             Q_star[i], sto_B_V[i], sto_v_V[i] = compute_V_function_stochastic_data_state(sto_B[i,:], sto_v[i,:])
@@ -333,8 +327,8 @@ function compute_V_function_stochastic_data(BB_vec, vv_vec, states, actions, P, 
         push!(Q_star_vec, copy(Q_star))
         push!(sto_B_V_vec, copy(sto_B_V))
         push!(sto_v_V_vec, copy(sto_v_V))
-        println("sto_B_V (t = $t) = after\n$sto_B_V")
-        println("sto_v_V (t = $t) = after\n$sto_v_V\n\n\n")
+        # println("sto_B_V (t = $t) = after\n$sto_B_V")
+        # println("sto_v_V (t = $t) = after\n$sto_v_V\n\n\n")
     end
 
     reverse!(B_v_S_vec)
@@ -344,34 +338,23 @@ function compute_V_function_stochastic_data(BB_vec, vv_vec, states, actions, P, 
     reverse!(sto_B_V_vec)
     reverse!(sto_v_V_vec)
 
-    # TODO: reverse vector for chronology as appropriate
-    return Q_star_vec, sto_B_V_vec, sto_v_V_vec, sto_B_vec, sto_v_vec
+    return Q_star_vec, sto_B_V_vec, sto_v_V_vec, sto_B_vec, sto_v_vec # B_v_S_vec
 end
 
 
-function compute_Q_function_stochastic_data(BB, vv, states, actions, P, c, r, Γ)
-    # # B_union[i] = vector of (action => budgets) for state i
-    # # v_union[i] = vector of (action => values) for state i
-
-    # B_union, v_union = compute_nondominated_budgets_values_Q(B_union, v_union)
-    # BB = map(B_union_state -> map(bevo -> bevo.second, B_union_state) , B_union)
-    # vv = map(v_union_state -> map(bevo -> bevo.second, v_union_state) , v_union)
-
-
-    # BB[i] = vector of budgets for state i
-    # vv[i] = vector of values for state i
-    BB, vv = compute_nondominated_budgets_values_Q(BB, vv)
+function compute_Q_function_stochastic_data(B, v, states, actions, P, c, r, Γ)
+    # B[i] = vector of budgets for state i
+    # v[i] = vector of values for state i
+    B, v = compute_nondominated_budgets_values_Q(B, v)
 
     BpB = Vector{Vector{Float64}}(undef, length(states))
     ΔB = Vector{Vector{Float64}}(undef, length(states))
     Δv = Vector{Vector{Float64}}(undef, length(states))
     for i in states
-        BpB[i], ΔB[i], Δv[i] = compute_bang_per_buck(BB[i], vv[i]) # this is defined for budgets [2:end] since the first budget is 0
+        BpB[i], ΔB[i], Δv[i] = compute_bang_per_buck(B[i], v[i]) # this is defined for budgets [2:end] since the first budget is 0
     end
 
     B_v_S = Array{Vector{Tuple{Int,Int,Float64,Float64,Float64,Float64,Float64}},2}(undef, length(states), length(actions))
-    # B_S = Array{Vector{Pair{Tuple{Int,Int}, NTuple{4,Float64}}},2}(undef, length(states), length(actions))
-    # v_S = Array{Vector{Pair{Tuple{Int,Int}, NTuple{4,Float64}}},2}(undef, length(states), length(actions))
     sto_B = Array{Vector{Float64},2}(undef, length(states), length(actions))
     sto_v = Array{Vector{Float64},2}(undef, length(states), length(actions))
 
@@ -382,9 +365,9 @@ function compute_Q_function_stochastic_data(BB, vv, states, actions, P, c, r, Γ
         # TODO: Remove duplicates, since we're merging over states
         B_v_S[i,a] = @pipe map(j -> 
                     begin 
-                        map(k -> (j, k-1, BB[j][k], vv[j][k], BpB[j][k-1], ΔB[j][k-1], Δv[j][k-1]), 2:length(BB[j]))   # budget of 0 excluded
-                        # Fix sort!() and sto_B/sto_v if use bottom line with action
-                        # map(k -> (j, k-1, B_union[j][k].first, BB[j][k], vv[j][k], BpB[j][k-1], ΔB[j][k-1], Δv[j][k-1]), 2:length(BB[j]))   # budget of 0 excluded
+                        map(k -> (j, k-1, B[j][k], v[j][k], BpB[j][k-1], ΔB[j][k-1], Δv[j][k-1]), 2:length(BB[j]))   # budget of 0 excluded
+                        # Fix sort!() and sto_B/sto_v if I use bottom line with action inserted
+                        # map(k -> (j, k-1, B_union[j][k].first, B[j][k], v[j][k], BpB[j][k-1], ΔB[j][k-1], Δv[j][k-1]), 2:length(BB[j]))   # budget of 0 excluded
                     end, S) |> vcat(_...)
         sort!(B_v_S[i,a], by = t -> t[5], rev=true)
 
@@ -424,11 +407,10 @@ function compute_Q_function_stochastic_data(BB, vv, states, actions, P, c, r, Γ
             # Δv(m): value increment   # B_S[i,a][m].second[4]
     end
 
-    return B_v_S, sto_B, sto_v   # B_S, v_S
+    return B_v_S, sto_B, sto_v
 end
 
 
-# TODO: Add t as parameter? Lets see how the induction step is done
 function compute_V_function_stochastic_data_state(sto_B, sto_v)
     # sto_B[a] = vector of budgets for action a, for some state
     # sto_v[a] = vector of values for action a, for some state
@@ -442,8 +424,7 @@ function compute_V_function_stochastic_data_state(sto_B, sto_v)
     Q_star = compute_nondominated_budgets_values_V(Q_star)
 
     # TODO: Keep this vector?
-    actions_Q_star = map(tup -> tup[1], Q_star)
-
+    # actions_Q_star = map(tup -> tup[1], Q_star)
     sto_B_i = map(tup -> tup[2], Q_star)   # nondominated
     sto_v_i = map(tup -> tup[3], Q_star)   # nondominated
 
@@ -480,6 +461,7 @@ function compute_V_function_stochastic_data_state(sto_B, sto_v)
 end
 
 
+# TODO: Finish.
 function compute_nondominated_budgets_values_Q(B_union, v_union)
     # B_union[i] = vector of budgets for state i
     # v_union[i] = vector of values for state i
@@ -498,7 +480,7 @@ function compute_bang_per_buck(B, v)
 end
 
 
-# TODO: Figure this function out. Reuse above function if possible
+# TODO: Finish. Reuse analagous Q function if possible
 function compute_nondominated_budgets_values_V(Q_star)
     # Q_star is vector of (action, budget, value) tuples for some state sorted in increasind order of budget
     # This function won't be nondecreasing in budget (ignoring actions)
@@ -509,7 +491,6 @@ function compute_nondominated_budgets_values_V(Q_star)
 end
 
 
-# TODO: Add t as parameter? Lets see how the induction step is done
 function Q_function_stochastic(b, i, a, sto_B, sto_v)
 
     if b < sto_B[i,a][1]
@@ -643,7 +624,6 @@ function gen_action(p, action_lower, action_upper, budget_lower, budget_upper, v
     end
 end
 
-function get_action_budget_value_stochastic(b, i, B_union_vec, v_union_vec, t)
 
 function gen_action(p, action_tup::NTuple{2,Int}, budget_tup::NTuple{2,Float64}, value_tup::NTuple{2,Float64})
     action_lower, action_upper = action_tup
@@ -651,3 +631,11 @@ function gen_action(p, action_tup::NTuple{2,Int}, budget_tup::NTuple{2,Float64},
     value_lower, value_upper = value_tup
     return gen_action(p, action_lower, action_upper, budget_lower, budget_upper, value_lower, value_upper)
 end
+
+# # Julia note 
+# x = [[1,2,3]]
+# y = [[4,5]]
+# push!(y, x[1])
+# x[1][3] = 6
+# x
+# y
