@@ -529,7 +529,110 @@ function Q_function_stochastic(b, i, a, sto_B, sto_v)
 end
 
 
-function V_function_stochastic(b, i, sto_B, sto_v, t)
+function Q_function_stochastic(b, i, a, sto_B_vec, sto_v_vec, t)
+
+    if b < sto_B_vec[t][i,a][1]
+        error("Budget $b is less than the smallest useful budget.")
+    elseif b > sto_B_vec[t][i,a][end]
+        return sto_v_vec[t][i,a][end]
+    end
+
+    ind_eq = findfirst(==(b), sto_B_vec[t][i,a])
+    if ind_eq !== nothing
+        return sto_v_vec[t][i,a][ind_eq]
+    else
+        ind_g = findfirst(>(b), sto_B_vec[t][i,a]) - 1
+        p = (b - sto_B_vec[t][i,a][ind_g]) / (sto_B_vec[t][i,a][ind_g+1] - sto_B_vec[t][i,a][ind_g])
+        return p * sto_v_vec[t][i,a][ind_g+1] + (1-p) * sto_v_vec[t][i,a][ind_g]
+    end
+end
+
+
+function V_function_stochastic(b, i, sto_B_V, sto_v_V)
+    # Return expected value of V(i,b) for some period
+
+    if b < sto_B_V[i][1]
+        error("Budget $b is less than the smallest useful budget.")
+    elseif b > sto_B_V[i][end]
+        return sto_v_V[i][end]
+    end
+
+    ind_eq = findfirst(==(b), sto_B_V[i])
+    if ind_eq !== nothing
+        return sto_v_V[i][ind_eq]
+    else
+        ind_g = findfirst(>(b), sto_B_V[i]) - 1
+        p = (b - sto_B_V[i][ind_g]) / (sto_B_V[i][ind_g+1] - sto_B_V[i][ind_g])
+        return p * sto_v_V[i][ind_g+1] + (1-p) * sto_v_V[i][ind_g]
+    end
+end
+
+
+function V_function_stochastic(b, i, sto_B_V_vec, sto_v_V_vec, t)
+    # Return expected value of V(i,b) at time t
+
+    if b < sto_B_V_vec[t][i][1]
+        error("Budget $b is less than the smallest useful budget.")
+    elseif b > sto_B_V_vec[t][i][end]
+        return sto_v_V_vec[t][i][end]
+    end
+
+    ind_eq = findfirst(==(b), sto_B_V_vec[t][i])
+    if ind_eq !== nothing
+        return sto_v_V_vec[t][i][ind_eq]
+    else
+        ind_g = findfirst(>(b), sto_B_V_vec[t][i]) - 1
+        p = (b - sto_B_V_vec[t][i][ind_g]) / (sto_B_V_vec[t][i][ind_g+1] - sto_B_V_vec[t][i][ind_g])
+        return p * sto_v_V_vec[t][i][ind_g+1] + (1-p) * sto_v_V_vec[t][i][ind_g]
+    end
+end
+
+
+# Just for V function? Q as well?
+function get_action_budget_value_stochastic(b, i, Q_star_vec, t)
+    # Return expected value of V(i,b) at time t
+    # Q_star_vec[t][i][k] is tuple (action, budget, value) of value function V(i,b) at period t
+    budgets = map(tup -> tup[2], Q_star_vec[t][i])
+
+    if b < budgets[1]
+        error("Budget $b is less than the smallest useful budget.")
+    elseif b > budgets[end]
+        p = 1
+        exp_value = Q_star_vec[t][i][end][3]
+        action_lower = Q_star_vec[t][i][end][1]
+        action_upper = Q_star_vec[t][i][end][1]
+        budget_lower = Q_star_vec[t][i][end][2]
+        budget_upper = Q_star_vec[t][i][end][2]
+        value_lower = Q_star_vec[t][i][end][3]
+        value_upper = Q_star_vec[t][i][end][3]
+        return p, exp_value, (action_lower, action_upper), (budget_lower, budget_upper), (value_lower, value_upper)
+    end
+
+    ind_eq = findfirst(==(b), budgets)
+    if ind_eq !== nothing
+        p = 1
+        exp_value = Q_star_vec[t][i][ind_eq][3]
+        action_lower = Q_star_vec[t][i][ind_eq][1]
+        action_upper = Q_star_vec[t][i][ind_eq][1]
+        budget_lower = Q_star_vec[t][i][ind_eq][2]
+        budget_upper = Q_star_vec[t][i][ind_eq][2]
+        value_lower = Q_star_vec[t][i][ind_eq][3]
+        value_upper = Q_star_vec[t][i][ind_eq][3]
+        return p, exp_value, (action_lower, action_upper), (budget_lower, budget_upper), (value_lower, value_upper)
+    else
+        ind_g = findfirst(>(b), budgets) - 1
+        p = (b - budgets[ind_g]) / (budgets[ind_g+1] - budgets[ind_g])
+        exp_value = p * Q_star_vec[t][i][ind_g+1][3] + (1-p) * Q_star_vec[t][i][ind_g][3]
+        action_lower = Q_star_vec[t][i][ind_g][1]
+        action_upper = Q_star_vec[t][i][ind_g+1][1]
+        budget_lower = Q_star_vec[t][i][ind_g][2]
+        budget_upper = Q_star_vec[t][i][ind_g+1][2]
+        value_lower = Q_star_vec[t][i][ind_g][3]
+        value_upper = Q_star_vec[t][i][ind_g+1][3]
+        return p, exp_value, (action_lower, action_upper), (budget_lower, budget_upper), (value_lower, value_upper)
+    end
+end
+
 
 end
 
