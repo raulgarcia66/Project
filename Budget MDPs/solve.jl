@@ -634,8 +634,20 @@ function get_action_budget_value_stochastic(b, i, Q_star_vec, t)
 end
 
 
+function gen_action(p, action_lower, action_upper, budget_lower, budget_upper, value_lower, value_upper)
+    U = rand()
+    if p <= U
+        return action_lower, budget_lower, value_lower
+    else
+        return action_upper, budget_upper, value_upper
+    end
 end
 
 function get_action_budget_value_stochastic(b, i, B_union_vec, v_union_vec, t)
 
+function gen_action(p, action_tup::NTuple{2,Int}, budget_tup::NTuple{2,Float64}, value_tup::NTuple{2,Float64})
+    action_lower, action_upper = action_tup
+    budget_lower, budget_upper = budget_tup
+    value_lower, value_upper = value_tup
+    return gen_action(p, action_lower, action_upper, budget_lower, budget_upper, value_lower, value_upper)
 end
