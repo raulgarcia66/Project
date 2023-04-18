@@ -1,6 +1,6 @@
 using Plots
 
-function plot_V_det(i, t::Int, B::Vector{Float64}, v::Vector{Float64}; save_plot::Bool=false)
+function plot_V_det(i, t::Int, B::Vector{Float64}, v::Vector{Float64}; save_plot::Bool=false, sub::Int=1)
     # B: budgets for some state and time
     # v: values for some state and time
 
@@ -12,22 +12,22 @@ function plot_V_det(i, t::Int, B::Vector{Float64}, v::Vector{Float64}; save_plot
     display(scatter!([B[end]], [v[end]]))
 
     if save_plot
-        png("V at i $i t $t det")
+        png("./Budget MDPs/images/deterministic/Sub $sub V at t $t i $i det")
     end
 end
 
 
-function plot_V_det(i, t::Int, B::Vector{Pair{Int, Float64}}, v::Vector{Pair{Int, Float64}}; save_plot::Bool=false)
+function plot_V_det(i, t::Int, B::Vector{Pair{Int, Float64}}, v::Vector{Pair{Int, Float64}}; save_plot::Bool=false, sub::Int=1)
     # B: (action => budgets) for some state and time
     # v: (action => values) for some state and time
 
     B = map(bud -> bud.second, B)
     v = map(val -> val.second, v)
-    plot_V_det(i, t, B, v; save_plot=save_plot)
+    plot_V_det(i, t, B, v; save_plot=save_plot, sub=sub)
 end
 
 
-function plot_V_stochastic(i, t::Int, B::Vector{Float64}, v::Vector{Float64}; save_plot::Bool=false)
+function plot_V_stochastic(i, t::Int, B::Vector{Float64}, v::Vector{Float64}; save_plot::Bool=false, sub::Int=1)
     # B: budgets for state i at time t
     # v: values for state i at time t
 
@@ -39,12 +39,12 @@ function plot_V_stochastic(i, t::Int, B::Vector{Float64}, v::Vector{Float64}; sa
     display(scatter!([B[end]], [v[end]]))
 
     if save_plot
-        png("V at i $i t $t stochastic")
+        png("./Budget MDPs/images/stochastic/Sub $sub V at t $t i $i stochastic")
     end
 end
 
 
-function plot_V_stochastic(i, B::Vector{Float64}, v::Vector{Float64}; save_plot::Bool=false)
+function plot_V_stochastic(i, B::Vector{Float64}, v::Vector{Float64}; save_plot::Bool=false, sub::Int=1)
     # B: budgets for state i at some time
     # v: values for state i at some time
 
@@ -56,12 +56,12 @@ function plot_V_stochastic(i, B::Vector{Float64}, v::Vector{Float64}; save_plot:
     display(scatter!([B[end]], [v[end]]))
 
     if save_plot
-        png("V at i $i stochastic")
+        png("./Budget MDPs/images/stochastic/Sub $sub V at i $i stochastic")
     end
 end
 
 
-function plot_Q_stochastic(i, a, t, B::Vector{Float64}, v::Vector{Float64}; save_plot::Bool=false)
+function plot_Q_stochastic(i, a, t, B::Vector{Float64}, v::Vector{Float64}; save_plot::Bool=false, sub::Int=1)
     # B: budgets for state i and action a at time t
     # v: values for state i and action a at time t
 
@@ -73,12 +73,12 @@ function plot_Q_stochastic(i, a, t, B::Vector{Float64}, v::Vector{Float64}; save
     display(scatter!([B[end]], [v[end]]))
 
     if save_plot
-        png("Q at i $i a = $a t = $t stochastic")
+        png("./Budget MDPs/images/stochastic/Sub $sub Q at t $t i $i a $a stochastic")
     end
 end
 
 
-function plot_Q_stochastic(i, a, B::Vector{Float64}, v::Vector{Float64}; save_plot::Bool=false)
+function plot_Q_stochastic(i, a, B::Vector{Float64}, v::Vector{Float64}; save_plot::Bool=false, sub::Int=1)
     # B: budgets for state i and action a at some time
     # v: values for state i and action a at some time
 
@@ -90,7 +90,7 @@ function plot_Q_stochastic(i, a, B::Vector{Float64}, v::Vector{Float64}; save_pl
     display(scatter!([B[end]], [v[end]]))
 
     if save_plot
-        png("Q at i $i a = $a stochastic")
+        png("./Budget MDPs/images/stochastic/Sub $sub Q at i $i a $a stochastic")
     end
 end
 
