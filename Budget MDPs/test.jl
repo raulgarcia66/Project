@@ -1,5 +1,4 @@
 using LinearAlgebra
-
 using JuMP
 using Gurobi
 import Random
@@ -8,7 +7,7 @@ include("./generate_random_parameters.jl")
 include("./solve.jl")
 include("./plotting.jl")
 
-num_sub = 1   # number of classes of subprocesses
+num_subs = 1   # number of classes of subprocesses
 B_max = 10   # max budget at any state; TODO: should not be synonymous with global budget
 T = 3    # time horizon ≈ 6 weeks of treatment
 
@@ -29,7 +28,7 @@ actions = [i for i = 1:num_actions]
 # # sum(α)
 
 # Create P, utilities, costs, rewards
-P, C, U, R = generate_data_rand(num_sub, num_states, num_actions);
+P, C, U, R = generate_data_rand(num_subs, num_states, num_actions);
 # U_terminal = create_u(num_states, num_actions, seed = seed)
 U_terminal = zeros(num_states)  # reward when no action is taken (e.g., at end of planning horizon); might not be used
 
@@ -55,7 +54,7 @@ plot_V_det(state, t, BB_vec[t][state], vv_vec[t][state])
 plot_V_det(state, t, B_union_vec[t][state], v_union_vec[t][state])
 
 for t in 1:T+1, i in 1:num_states
-    plot_V_det(i, t, BB_vec[t][i], vv_vec[t][i], save_plot=true)
+    plot_V_det(i, t, BB_vec[t][i], vv_vec[t][i], save_plot=false)
 end
 
 for t = 1:T
@@ -71,7 +70,7 @@ end
 
 ###############################################################################
 sub = 1
-T = 6
+T = 7
 Q_star_vec, sto_B_V_vec, sto_v_V_vec, sto_B_vec, sto_v_vec = compute_stochastic_data(states, actions, P[sub], C[sub], R[sub], Γ[sub], T);
 Q_star_vec[2][2]
 sto_B_V_vec[2][2]
@@ -89,6 +88,10 @@ V_i_b_t = V_function_stochastic(b, state, sto_B_V_vec[t], sto_v_V_vec[t])
 V_i_b_t = V_function_stochastic(b, state, sto_B_V_vec, sto_v_V_vec, t)
 
 plot_V_stochastic(state, t, sto_B_V_vec[t][state], sto_v_V_vec[t][state], save_plot=false)
+plot_V_stochastic(state, sto_B_V_vec[t][state], sto_v_V_vec[t][state], save_plot=false)
+
+plot_Q_stochastic(state, a, t, sto_B_vec[t][state,a], sto_v_vec[t][state,a], save_plot=false)
+plot_Q_stochastic(state, a, sto_B_vec[t][state,a], sto_v_vec[t][state,a], save_plot=false)
 
 p, exp_value, action_tup, budget_tup, value_tup = get_action_budget_value_stochastic(b, state, Q_star_vec, t)
 action_lower, action_upper = action_tup
