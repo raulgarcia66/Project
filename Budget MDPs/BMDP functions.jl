@@ -29,8 +29,14 @@ function compute_deterministic_data(states, actions, B_max, P, c, r, Γ, T)
     v_union_vec = Vector{Vector{Pair{Int, Float64}}}[]   # store useful values vu = [vu]_[i] as (action => value) pairs by pruning v~u; T elements
     vv_vec = Vector{Vector{Float64}}[]   # store useful values vv = [vv]_[i] by extracting the budgets from the pairs in vu; these are the final useful values for each state i; T+1 elements
     
-    # σ_tilde_vec = Array{Vector{Vector{Int}}, 2}[]   # store mappings σ~ = [σ~]_[i,a] (= Vectors) corresponding to potentially useful budget assignments; T elements
-    # σ_vec = Array{Vector{Vector{Int}}, 2}[]   # store mappings σ = [σ]_[i,a] (= Vectors) corresponding to useful budget assignments; T elements
+    σ_tilde_vec = Array{Vector{Vector{Int}}, 2}[]   # store mappings σ~ = [σ~]_[i,a] (= Vectors) corresponding to potentially useful budget assignments; T elements
+    σ_vec = Array{Vector{Vector{Int}}, 2}[]   # store mappings σ = [σ]_[i,a] (= Vectors) corresponding to useful budget assignments; T elements
+    σ_tilde_union_vec = Vector{Vector{Pair{Int, Vector{Int}}}}[]   # store mappings σ~u = [σ~u]_[i,a] (= Vectors) corresponding to potentially useful budget assignments; T elements
+    σ_union_vec = Vector{Vector{Pair{Int, Vector{Int}}}}[]   # store mappings σu = [σu]_[i,a] (= Vectors) corresponding to useful budget assignments; T elements
+    sigma_vec = Vector{Vector{Vector{Int}}}[]   # store useful mappings sigma = [sigma]_[i] by extract the mappings from σu; these are the final useful; T elements
+    # Each σ is a vector of assignments of the indices of elements of reachable next states S
+    # E.g., Let states = [1,2,3,4] and S = [2,3]. Suppose b[2] has 2 elements and b[3] 3 elements.
+    # ⟹ assignments = [[1,1], [2,1], [1,2], [2,2], [1,3], [2,3]]
 
     ## Initialize
     B_tilde = [[0.0] for _ = 1:num_states, _ = 1:num_actions]
@@ -48,7 +54,11 @@ function compute_deterministic_data(states, actions, B_max, P, c, r, Γ, T)
     push!(vv_vec, vv)
 
     σ_tilde = [[[1]] for _ = 1:num_states, _ = 1:num_actions]
+    # push!(σ_tilde_vec, σ_tilde)
     σ = [[[1]] for _ = 1:num_states, _ = 1:num_actions]
+    # push!(σ_vec, σ)
+    # sigma = [[[1]] for _ = 1:num_states, _ = 1:num_actions]
+    # # push!(sigma_vec, sigma)
     
     for t = 1:T
         println("Iteration = $t \n")
@@ -60,7 +70,7 @@ function compute_deterministic_data(states, actions, B_max, P, c, r, Γ, T)
         end
         push!(B_tilde_vec, copy(B_tilde))
         push!(v_tilde_vec, copy(v_tilde))
-        # push!(σ_tilde_vec, σ_tilde)
+        push!(σ_tilde_vec, copy(σ_tilde))
 
         println("About to compute B[i,a].\n")
         for i in states, a in actions
@@ -68,11 +78,12 @@ function compute_deterministic_data(states, actions, B_max, P, c, r, Γ, T)
         end
         push!(B_vec, copy(B))
         push!(v_vec, copy(v))
-        # push!(σ_vec, σ)
+        push!(σ_vec, copy(σ))
 
         ## Take union of B over actions a
         # B_tilde_union[i] is the set of potentially useful budgets after unioning over actions, stored as (action => budget) pairs for state i
         # v_tilde_union[i] is the set of potentially useful values after unioning over actions, stored as (action => budget) pairs for state i
+        # σ_tilde_union[i] is the set of potentially useful budget mappings after unioning over actions, stored as (action => mapping) pairs for state i
         println("About to compute B_tilde_union.\n")
         # TODO: Remove duplicates?
         B_tilde_union = map(i -> 
@@ -81,24 +92,30 @@ function compute_deterministic_data(states, actions, B_max, P, c, r, Γ, T)
                             end, states)
         v_tilde_union = map(i ->
                             begin
-                                @pipe map(a -> map(b -> a => b, v[i,a]), actions) |> collect(Iterators.flatten(_))
+                                @pipe map(a -> map(v -> a => v, v[i,a]), actions) |> collect(Iterators.flatten(_))
+                            end, states)
+        σ_tilde_union = map(i ->
+                            begin
+                                @pipe map(a -> map(s -> a => s, σ[i,a]), actions) |> collect(Iterators.flatten(_))
                             end, states)
         push!(B_tilde_union_vec, copy(B_tilde_union))
         push!(v_tilde_union_vec, copy(v_tilde_union))
+        push!(σ_tilde_union_vec, copy(σ_tilde_union))
 
         # println("B_tilde_union: $(B_tilde_union)")
-        # println("v_tilde_union: $(v_tilde_union)\n")
+        # println("v_tilde_union: $(v_tilde_union)")
+        # println("σ_tilde_union: $(σ_tilde_union)\n")
 
         ## Prune B_tilde_union to get B_union
         println("About to compute B_union.\n")
-        B_union, v_union = copy(B_tilde_union), copy(v_tilde_union)
+        B_union, v_union, σ_union = copy(B_tilde_union), copy(v_tilde_union), copy(σ_tilde_union)
         for i in states
-            B_union[i], v_union[i] = computed_useful_budgets_values_state(B_tilde_union[i], v_tilde_union[i])
-            # B_union[i], v_union[i], σ_union[i] = computed_useful_budgets_state(B_tilde_union[i], v_tilde_union[i], σ_tilde_union[i])
+            # B_union[i], v_union[i] = compute_useful_budgets_values_state(B_tilde_union[i], v_tilde_union[i])
+            B_union[i], v_union[i], σ_union[i] = compute_useful_budgets_values_state(B_tilde_union[i], v_tilde_union[i], σ_tilde_union[i])
         end
         push!(B_union_vec, copy(B_union))
         push!(v_union_vec, copy(v_union))
-        # push!(σ_union_vec, σ_union)
+        push!(σ_union_vec, copy(σ_union))
 
         # println("B_union: $(B_union)")
         # println("v_union: $(v_union)\n")
@@ -107,22 +124,30 @@ function compute_deterministic_data(states, actions, B_max, P, c, r, Γ, T)
         push!(BB_vec, copy(BB))
         vv = map(v_union_state -> map(bevo -> bevo.second, v_union_state) , v_union)
         push!(vv_vec, copy(vv))
+        sigma = map(σ_union_state -> map(bevo -> bevo.second, σ_union_state) , σ_union)
+        push!(sigma_vec, copy(sigma))
     end
 
     # Order chronologically
+    reverse!(B_tilde_union_vec)
     reverse!(B_union_vec)
     reverse!(BB_vec)
-    reverse!(B_tilde_union_vec)
+    reverse!(v_tilde_union_vec)
     reverse!(v_union_vec)
     reverse!(vv_vec)
-    reverse!(v_tilde_union_vec)
+    reverse!(σ_tilde_union_vec)
+    reverse!(σ_union_vec)
+    reverse!(sigma_vec)
+
     reverse!(B_vec)
     reverse!(B_tilde_vec)
     reverse!(v_vec)
     reverse!(v_tilde_vec)
+    reverse!(σ_vec)
+    reverse!(σ_tilde_vec)
 
     # return B_union_vec, BB_vec, B_tilde_union_vec, v_union_vec, vv_vec, v_tilde_union_vec, B_vec, B_tilde_vec, v_vec, v_tilde_vec   # , σ_vec, σ_tilde_vec
-    return B_union_vec, v_union_vec, BB_vec, vv_vec
+    return B_union_vec, v_union_vec, σ_union_vec, BB_vec, vv_vec, sigma_vec
 end
 
 
@@ -205,15 +230,19 @@ function compute_useful_budgets_values_state_action(b, v, σ)
     end
 end
 
-function computed_useful_budgets_values_state(B, v)
+
+function compute_useful_budgets_values_state(B, v, σ)
     # B is the set of potentially useful budgets after unioning over actions, stored as (action => budget) pairs, for some state
     # v is the set of potentially useful values after unioning over actions, stored as (action => budget) pairs, for some state
+    # σ is the set of potentially useful budget assignments after unioning over actions, stored as (action => budget) pairs, for some state
 
-    if !isempty(B)
+    # println("B = $B \nv = $v \n σ = $σ \n")
+
+    if !isempty(B)   # all should be nonempty if b is nonempty
         sorted_ind = sortperm(B, by = a_b_pairs -> a_b_pairs.second)
         B = B[sorted_ind]
         v = v[sorted_ind]
-        # σ = σ[sorted_ind]
+        σ = σ[sorted_ind]
 
         # Prune budgets whose value is beat by the value of any previous smaller budget
         eps = 1E-5
@@ -222,7 +251,29 @@ function computed_useful_budgets_values_state(B, v)
                     all( map(ℓ -> v[ℓ].second < v[k].second - eps, 1:(k-1)) )
                 end, eachindex(B))
 
-        return B[indices], v[indices]#, σ[indices]
+        return B[indices], v[indices], σ[indices]
+    else
+        return B, v, σ
+    end
+end
+
+function compute_useful_budgets_values_state(B, v)
+    # B is the set of potentially useful budgets after unioning over actions, stored as (action => budget) pairs, for some state
+    # v is the set of potentially useful values after unioning over actions, stored as (action => budget) pairs, for some state
+
+    if !isempty(B)
+        sorted_ind = sortperm(B, by = a_b_pairs -> a_b_pairs.second)
+        B = B[sorted_ind]
+        v = v[sorted_ind]
+
+        # Prune budgets whose value is beat by the value of any previous smaller budget
+        eps = 1E-5
+        indices = filter(k ->
+                begin
+                    all( map(ℓ -> v[ℓ].second < v[k].second - eps, 1:(k-1)) )
+                end, eachindex(B))
+
+        return B[indices], v[indices]
     else
         return B, v
     end
@@ -245,7 +296,7 @@ function V_function_det(b, i, B_union_vec::Vector{Vector{Vector{Pair{Int,Float64
     if index === nothing
         index = length(B_union_vec[t][i])   # budget is the last element
     elseif index != 1   # first budget is 0
-        index -= 1   # our budget is the previousb
+        index -= 1   # our budget is the previous
     end
     return v_union_vec[t][i][index].second
 end
@@ -261,13 +312,13 @@ function V_function_det(b, i, BB_vec::Vector{Vector{Vector{Float64}}}, vv_vec::V
     if index === nothing
         index = length(BB_vec[t][i])   # budget is the last element
     elseif index != 1   # first budget is 0
-        index -= 1   # our budget is the previousb
+        index -= 1   # our budget is the previous
     end
     return vv_vec[t][i][index]
 end
 
 
-function get_action_budget_value_det(b, i, B_union_vec, v_union_vec, t)
+function get_action_budget_value_det(b, i, B_union_vec::Vector{Vector{Vector{Pair{Int,Float64}}}}, v_union_vec::Vector{Vector{Vector{Pair{Int,Float64}}}}, t)
     # return action for when budget is b
     # t is period
     # i is state
@@ -277,14 +328,41 @@ function get_action_budget_value_det(b, i, B_union_vec, v_union_vec, t)
     if index === nothing
         index = length(B_union_vec[t][i])   # budget is the last element
     elseif index != 1   # first budget is 0
-        index -= 1   # our budget is the previousb
+        index -= 1   # our budget is the previous
     end
     return B_union_vec[t][i][index].first, B_union_vec[t][i][index].second, v_union_vec[t][i][index].second
 end
 
 
+function get_action_budget_value_mapping_det(b, i, B_union_vec::Vector{Vector{Vector{Pair{Int,Float64}}}}, v_union_vec::Vector{Vector{Vector{Pair{Int,Float64}}}}, σ_union_vec::Vector{Vector{Vector{Pair{Int,Vector{Int}}}}}, t)
+    # return action for when budget is b
+    # t is period
+    # i is state
+
+    ϵ = 1E-6
+    index = findfirst(bud -> bud.second > b + ϵ, B_union_vec[t][i])   # find first budget that exceeds b
+    if index === nothing
+        index = length(B_union_vec[t][i])   # budget is the last element
+    elseif index != 1   # first budget is 0
+        index -= 1   # our budget is the previous
+    end
+    return B_union_vec[t][i][index].first, B_union_vec[t][i][index].second, v_union_vec[t][i][index].second, σ_union_vec[t][i][index].second
+end
+
+
+function gen_next_state(P, current_state, action)
+    U = rand()
+    sum = 0
+    for i in eachindex(P[current_state, :, action])
+        sum += P[current_state, i, action]
+        if sum > U
+            return i
+        end
+    end
+end
+
 #################################################################################
-## Functions for stochastic policies
+##### Functions for stochastic policies
 
 function compute_stochastic_data(states, actions, P, c, r, Γ, T)
     # Store data
@@ -384,6 +462,7 @@ function compute_Q_function_stochastic_data(B::Vector{Vector{Float64}}, v::Vecto
         sto_B[i,a] = map(m -> sto_B_0 + sum([ P[i, B_v_S[i,a][ℓ][1], a] * B_v_S[i,a][ℓ][6] for ℓ = 1:m ]), eachindex(B_v_S[i,a]))
         pushfirst!(sto_B[i,a], sto_B_0)
 
+        # TODO: Make sure both of these are correct
         sto_v_0 = r[i,a] + Γ * sum([ P[i, j, a] * v[j][1] for j in S ])
         sto_v[i,a] = map(m -> r[i,a] + Γ * (sto_v_0 + sum([ P[i, B_v_S[i,a][ℓ][1], a] * B_v_S[i,a][ℓ][7] for ℓ = 1:m ])), eachindex(B_v_S[i,a]))
         pushfirst!(sto_v[i,a], sto_v_0)
