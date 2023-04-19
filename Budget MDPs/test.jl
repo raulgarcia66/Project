@@ -4,12 +4,12 @@ using Gurobi
 import Random
 using Pipe
 include("./generate_random_parameters.jl")
-include("./solve.jl")
+include("./BMDP functions.jl")
 include("./plotting.jl")
 
 num_subs = 1   # number of classes of subprocesses
 B_max = 10   # max budget at any state; TODO: should not be synonymous with global budget
-T = 3    # time horizon ≈ 6 weeks of treatment
+global_budget = 10   # budget to be distributed among subclasses
 
 num_states = 3   # will assume all subMDPs have same number of states
 states = [i for i = 1:num_states]
@@ -34,13 +34,13 @@ U_terminal = zeros(num_states)  # reward when no action is taken (e.g., at end o
 
 # Discount factor
 Random.seed!(1)
-Γ = 1 .- rand(num_sub)*0.05
+Γ = 1 .- rand(num_subs)*0.05
 
 ###############################################################################
 sub = 1
-T = 3
+T = 3   # time horizon ≈ 6 weeks of treatment
 
-B_union_vec, v_union_vec, BB_vec, vv_vec = compute_deterministic_data(states, actions, B_max, P[sub], C[sub], R[sub], Γ[sub], T);
+B_union_vec, v_union_vec, σ_union_vec, BB_vec, vv_vec, σ_vec = compute_deterministic_data(states, actions, B_max, P[sub], C[sub], R[sub], Γ[sub], T);
 
 state = 1
 a = 1

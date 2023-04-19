@@ -27,6 +27,9 @@ function solve_UBAP(num_subs::Int, init_state_subs::Vector{T}, global_budget::W,
 end
 
 
+"""
+Given solution from JuMP model, extract the indices of the assigned budgets for each state.
+"""
 function extract_budget_index(x_vals, num_subs::Int)
     indices = Vector{Int}(undef, num_subs)
     for i in 1:num_subs
