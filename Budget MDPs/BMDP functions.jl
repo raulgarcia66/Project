@@ -280,10 +280,19 @@ function compute_useful_budgets_values_state(B, v)
 end
 
 
-# TODO:
-# function Q_function_det(b, i, B_vec, v_vec, t)
-
-# end
+function Q_function_det(b, i, a, B_vec, v_vec, t)
+    # Return value for when budget is b and action is A
+    # t is period, i is state
+    
+    ϵ = 1E-8
+    index = findfirst(bud -> bud > b + ϵ, B_vec[t][i,a])   # find first budget that exceeds b
+    if index === nothing
+        index = length(B_vec[t][i,a])   # budget is the last element
+    elseif index != 1   # first budget is 0
+        index -= 1   # our budget is the previous
+    end
+    return v_vec[t][i,a][index]
+end
 
 
 function V_function_det(b, i, B_union_vec::Vector{Vector{Vector{Pair{Int,Float64}}}}, v_union_vec::Vector{Vector{Vector{Pair{Int,Float64}}}}, t)
