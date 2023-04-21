@@ -296,9 +296,8 @@ end
 
 
 function V_function_det(b, i, B_union_vec::Vector{Vector{Vector{Pair{Int,Float64}}}}, v_union_vec::Vector{Vector{Vector{Pair{Int,Float64}}}}, t)
-    # return action for when budget is b
-    # t is period
-    # i is state
+    # Return value for when budget is b
+    # t is period, i is state
 
     ϵ = 1E-6
     index = findfirst(bud -> bud.second > b + ϵ, B_union_vec[t][i])   # find first budget that exceeds b
@@ -312,9 +311,8 @@ end
 
 
 function V_function_det(b, i, BB_vec::Vector{Vector{Vector{Float64}}}, vv_vec::Vector{Vector{Vector{Float64}}}, t)
-    # return action for when budget is b
-    # t is period
-    # i is state
+    # Return value for when budget is b
+    # t is period, i is state
 
     ϵ = 1E-6
     index = findfirst(bud -> bud > b + ϵ, BB_vec[t][i])   # find first budget that exceeds b
@@ -343,9 +341,8 @@ end
 
 
 function get_action_budget_value_det(b, i, B_union_vec::Vector{Vector{Vector{Pair{Int,Float64}}}}, v_union_vec::Vector{Vector{Vector{Pair{Int,Float64}}}}, t)
-    # return action for when budget is b
-    # t is period
-    # i is state
+    # Return action, budget and value for when budget is b
+    # t is period, i is state
 
     ϵ = 1E-6
     index = findfirst(bud -> bud.second > b + ϵ, B_union_vec[t][i])   # find first budget that exceeds b
@@ -359,11 +356,10 @@ end
 
 
 function get_action_budget_value_mapping_det(b, i, B_union_vec::Vector{Vector{Vector{Pair{Int,Float64}}}}, v_union_vec::Vector{Vector{Vector{Pair{Int,Float64}}}}, σ_union_vec::Vector{Vector{Vector{Pair{Int,Vector{Int}}}}}, t)
-    # return action for when budget is b
-    # t is period
-    # i is state
+    # Return action, budget and value for when budget is b
+    # t is period, i is state
 
-    ϵ = 1E-6
+    ϵ = 1E-8
     index = findfirst(bud -> bud.second > b + ϵ, B_union_vec[t][i])   # find first budget that exceeds b
     if index === nothing
         index = length(B_union_vec[t][i])   # budget is the last element
@@ -742,7 +738,6 @@ function V_function_stochastic(b, i, sto_B_V_vec, sto_v_V_vec, t)
 end
 
 
-# Just for V function? Q as well?
 function get_action_budget_value_stochastic(b, i, Q_star_vec, t)
     # Return expected value of V(i,b) at time t
     # Q_star_vec[t][i][k] is tuple (action, budget, value) of value function V(i,b) at period t
@@ -804,6 +799,21 @@ function gen_action(p, action_tup::NTuple{2,Int}, budget_tup::NTuple{2,Float64},
     value_lower, value_upper = value_tup
     return gen_action(p, action_lower, action_upper, budget_lower, budget_upper, value_lower, value_upper)
 end
+
+
+#################################################################################
+
+function gen_next_state(P, current_state, action)
+    U = rand()
+    sum = 0
+    for i in eachindex(P[current_state, :, action])
+        sum += P[current_state, i, action]
+        if sum > U
+            return i
+        end
+    end
+end
+
 
 # # Julia note 
 # x = [[1,2,3]]
