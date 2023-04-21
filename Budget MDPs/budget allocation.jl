@@ -14,16 +14,16 @@ function solve_UBAP(num_subs::Int, init_state_subs::Vector{T}, global_budget::W,
     @variable(model, x[i in M, k in L[i]], Bin)
 
     @constraint(model, sum([sum([B_vec_subs[i][1][init_state_subs[i]][k] * x[i,k] for k in L[i]]) for i in M]) <= global_budget)
-    @constraint(model, [i in M] , sum([x[i,k] for k in L[i]]) <= 1)
-
-    sum([sum([B_vec_subs[i][1][init_state_subs[i]][k] * x[i,k] for k in L[i]]) for i in M])
-
+    @constraint(model, [i in M] , sum([x[i,k] for k in L[i]]) == 1)
+    
     @objective(model, Max, sum([sum([v_vec_subs[i][1][init_state_subs[i]][k] * x[i,k] for k in L[i]]) for i in M]))
 
     # println("$model")
     optimize!(model)
+    @show value.(x)
 
-    return value.(x), objective_value(model)
+    return objective_value(model)
+    # return model
 end
 
 
